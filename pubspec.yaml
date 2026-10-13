@@ -1,0 +1,40 @@
+name: unitable
+description: 完全ローカルの大学生向け時間割・課題・年間予定管理
+publish_to: none
+version: 0.1.12+16
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  sqlite3: 2.9.4
+  sqlite3_flutter_libs: 0.5.41
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  ffi: ^2.1.4
+  file_selector: ^1.0.3
+  flutter_markdown: ^0.7.7
+  flutter_local_notifications: 19.5.0
+  timezone: ^0.10.1
+  msix: ^3.16.12
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/holidays.json
+    - assets/fonts/OFL.txt
+  fonts:
+    - family: Noto Sans JP
+      fonts:
+        - asset: assets/fonts/NotoSansJP.ttf
+msix_config:
+  display_name: うに時間割
+  publisher_display_name: うに時間割
+  identity_name: UniTable.Local
+  msix_version: 0.1.12.0
+  capabilities: ''

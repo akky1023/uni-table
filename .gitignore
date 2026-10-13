@@ -1,0 +1,50 @@
+# Flutter / Dart generated files
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+coverage/
+
+# Local tools, release packages and UI verification output
+/.tools/
+/dist/
+/artifacts/
+
+# Platform-local build configuration and caches
+android/local.properties
+android/.gradle/
+android/.kotlin/
+android/.cxx/
+windows/flutter/ephemeral/
+
+# Signing keys and local credentials (keep example files)
+**/key.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+
+# User databases and device preferences
+*.unitable
+*.unitable-*
+storage-location.json
+
+# IDE / OS files
+.idea/
+*.iml
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python cache and diagnostic logs
+__pycache__/
+*.py[cod]
+*.log
