@@ -194,6 +194,7 @@ void main() {
               as RenderRepaintBoundary)
           .toImage();
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      await Directory('artifacts').create(recursive: true);
       await File('artifacts/$filename.png')
           .writeAsBytes(bytes!.buffer.asUint8List());
       image.dispose();
