@@ -32,7 +32,7 @@
 
 ## 開発
 
-変更の提出方法・コミット形式・自動バージョン管理の仕様は[コントリビュータ向けガイド](CONTRIBUTING.md)を参照してください。Release Pleaseによる自動化は導入予定で、現在はまだ動作しません。
+変更の提出方法・コミット形式・自動バージョン管理の仕様は[コントリビュータ向けガイド](CONTRIBUTING.md)を参照してください。Release Pleaseがコミット内容から次の版を決め、リリースPRのマージ後に検証・ビルド・配布を行います。
 
 ### 必要なもの
 
@@ -98,7 +98,7 @@ Androidの署名情報は`android/key.properties`または`.tools/signing/androi
 
 制作者: [akky_1023](https://github.com/akky1023) / [HP](https://neomenia.net/)
 
-アプリ内の制作者情報・URL・表示バージョンは`lib/app_info.dart`で変更できます。
+アプリ内の制作者情報・URLは`lib/app_info.dart`で変更できます。バージョンはRelease Pleaseが`pubspec.yaml`を更新し、アプリ内表示もそのビルド情報から取得します。
 
 アプリ本体は[MIT License](LICENSE)で公開します。著作権表記はGitHubリポジトリのライセンスに合わせています。
 

@@ -1,0 +1,7 @@
+# リリース・署名・依存関係の変更はメンテナーが確認します。
+/.github/ @akky1023
+/release-please-config.json @akky1023
+/.release-please-manifest.json @akky1023
+/scripts/ @akky1023
+/pubspec.yaml @akky1023
+/pubspec.lock @akky1023
