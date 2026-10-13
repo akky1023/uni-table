@@ -114,7 +114,8 @@ flutter test
 - `main`の履歴を基準にRelease Pleaseが番号と変更履歴を更新します。基準版は`1.0.0`で、導入前の履歴は`bootstrap-sha`で除外します。
 - Release Pleaseの`GITHUB_TOKEN`が作るPRは通常のPRイベントでCIが起動しないため、ワークフロー側でCIを明示的に起動します。PRをマージする前に検証結果を確認してください。
 - 公式APKは既存の署名鍵をGitHub Secretsから読み込みます。forkのPR検証には署名鍵を渡しません。CI上で署名鍵を新規生成することもしません。
-- 必要なSecretsは`ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_PASSWORD`、`ANDROID_KEY_ALIAS`です。導入時の秘密鍵の外部転送は承認待ちで、現時点では未登録です。未登録のままリリースPRをマージすると配布ビルドは失敗し、公開されません。署名鍵を登録した際はこの導入状況も更新してください。
+- 必要なSecretsは`ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_PASSWORD`、`ANDROID_KEY_ALIAS`です。既存の公式APKの署名情報を登録済みです。登録が欠けている場合は配布ビルドを停止し、公開しません。
+- メンテナーはローカルの署名鍵（`.jks`）とパスワードを含む`android-key.properties`を別途バックアップしてください。現在の保管先は`.tools/signing/`です。このフォルダーはGit管理外なので、リポジトリのcloneだけでは復元できません。別の場所へ復元するときは`storeFile`のパスを合わせます。
 - ビルドやアップロードに失敗したReleaseは下書きのまま残します。原因を修正したうえで、GitHub Actionsの「失敗したジョブを再実行」を使います。公開済みのReleaseは上書きしません。
 - 配布対象はAPK、Windowsインストーラー、ポータブルZIPです。MSIXは署名・インストール・通知の検証が済むまで公式配布物に含めません。
 - リリース処理は`main`の正規リポジトリだけで実行し、Release Pleaseと使用するActionsをコミットSHAに固定します。更新はDependabotのPRをレビューして取り込みます。
