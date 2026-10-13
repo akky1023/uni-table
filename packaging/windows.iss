@@ -22,6 +22,7 @@ MinVersion=10.0.17763
 OutputDir={#OutputDir}
 OutputBaseFilename=UniTable-{#AppVersion}-windows-x64-setup
 UninstallDisplayIcon={app}\UniTable.exe
+SetupIconFile=..\windows\runner\resources\app_icon.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

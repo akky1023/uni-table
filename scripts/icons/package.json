@@ -1,0 +1,10 @@
+{
+  "name": "unitable-icon-tools",
+  "private": true,
+  "scripts": {
+    "generate": "node generate.cjs"
+  },
+  "dependencies": {
+    "sharp": "0.35.5"
+  }
+}

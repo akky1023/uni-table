@@ -30,6 +30,8 @@ flutter:
     - LICENSE
     - assets/holidays.json
     - assets/fonts/OFL.txt
+    - assets/icons/app_icon.svg
+    - assets/icons/webp/
   fonts:
     - family: Noto Sans JP
       fonts:
@@ -38,4 +40,6 @@ msix_config:
   display_name: うに時間割
   publisher_display_name: うに時間割
   identity_name: UniTable.Local
+  logo_path: assets/icons/app_icon_1024.png
+  trim_logo: false
   capabilities: ''

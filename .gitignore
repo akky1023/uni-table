@@ -48,3 +48,4 @@ Desktop.ini
 __pycache__/
 *.py[cod]
 *.log
+/scripts/icons/node_modules/
