@@ -3,7 +3,7 @@ description: 完全ローカルの大学生向け時間割・課題・年間予�
 publish_to: none
 version: 1.0.0+17
 environment:
-  sdk: '>=3.6.0 <4.0.0'
+  sdk: '>=3.10.0 <4.0.0'
 dependencies:
   flutter:
     sdk: flutter
@@ -19,6 +19,7 @@ dependencies:
   flutter_local_notifications: 19.5.0
   timezone: ^0.10.1
   msix: ^3.16.12
+  package_info_plus: 10.2.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -37,5 +38,4 @@ msix_config:
   display_name: うに時間割
   publisher_display_name: うに時間割
   identity_name: UniTable.Local
-  msix_version: 1.0.0.0
   capabilities: ''

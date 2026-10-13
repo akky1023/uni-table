@@ -46,6 +46,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> with WidgetsBindingObserver {
   final notices = NotificationService();
+  late final Future<String> applicationVersion = loadAppVersion();
   int page = 0;
   DateTime week = shiftDay(DateTime.now(), 1 - DateTime.now().weekday);
   late int year;
@@ -3223,7 +3224,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       case 'about':
         contents.addAll([
           section('うに時間割', [
-            const SelectableText('バージョン: $appVersion'),
+            FutureBuilder<String>(
+                future: applicationVersion,
+                builder: (context, snapshot) => SelectableText(
+                    'バージョン: ${snapshot.data ?? (snapshot.hasError ? '取得できません' : '…')}')),
           ]),
           section('制作者', [
             const ListTile(

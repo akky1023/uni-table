@@ -9,6 +9,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unitable/data/database.dart';
 import 'package:unitable/app_info.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:unitable/domain/schedule.dart';
 import 'package:unitable/ui/home.dart';
 import 'package:unitable/ui/annual_calendar.dart';
@@ -39,7 +40,16 @@ void main() {
   });
   late Directory folder;
   late Storage storage;
+  final appVersion = RegExp(r'^version:\s*([^+\s]+)', multiLine: true)
+      .firstMatch(File('pubspec.yaml').readAsStringSync())!
+      .group(1)!;
   setUp(() {
+    PackageInfo.setMockInitialValues(
+        appName: 'うに時間割',
+        packageName: 'net.neomenia.unitable',
+        version: appVersion,
+        buildNumber: '17',
+        buildSignature: '');
     folder = Directory.systemTemp.createTempSync('unitable-ui-');
     storage = Storage()
       ..support = folder
