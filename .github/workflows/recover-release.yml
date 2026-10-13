@@ -121,7 +121,7 @@ jobs:
           $predicate = ConvertFrom-Json -InputObject $env:WORKFLOW_PREDICATE -AsHashtable
           $source = @{ name = 'application-source'; uri = "git+$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY@refs/tags/$env:RELEASE_TAG"; digest = @{ gitCommit = $env:RELEASE_SHA } }
           # 公式生成のワークフロー情報は保持し、実際にビルドしたタグのソースを追加する。
-          $predicate.buildDefinition.resolvedDependencies = @($source) + @($predicate.buildDefinition.resolvedDependencies)
+          $predicate.buildDefinition.resolvedDependencies = @($predicate.buildDefinition.resolvedDependencies) + @($source)
           [IO.File]::WriteAllText((Join-Path $env:GITHUB_WORKSPACE '.tools/release-provenance.json'), (ConvertTo-Json -InputObject $predicate -Depth 30 -Compress), [Text.UTF8Encoding]::new($false))
       - name: Attest recovered release provenance
         uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0
