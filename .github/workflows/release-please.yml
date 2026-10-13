@@ -38,10 +38,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_PRS: ${{ steps.release.outputs.prs }}
         shell: bash
         run: |
-          gh pr list --label 'autorelease: pending' --state open --json headRefName \
-            --jq '.[].headRefName' | while IFS= read -r branch; do
+          printf '%s' "$RELEASE_PRS" | jq -er '.[].headBranchName' | while IFS= read -r branch; do
+              case "$branch" in
+                release-please--branches--main*) ;;
+                *) echo 'Unexpected release PR branch'; exit 1 ;;
+              esac
               gh workflow run ci.yml --ref "$branch"
             done
 
@@ -85,6 +89,11 @@ jobs:
           ref: abaf9c523780a608bd46686fd5e53740a07077f8 # 3.47.7
           path: .tools/flutter
           persist-credentials: false
+      - name: Restore verified Flutter version tag
+        run: |
+          git -C .tools/flutter fetch --no-tags --depth 1 origin tag 3.47.7
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter version tag fetch failed.' }
+          if ((git -C .tools/flutter rev-parse 'refs/tags/3.47.7^{commit}') -cne 'abaf9c523780a608bd46686fd5e53740a07077f8') { throw 'Flutter version tag was changed.' }
       - name: Add Flutter to PATH
         run: '"$env:GITHUB_WORKSPACE\.tools\flutter\bin" | Out-File $env:GITHUB_PATH -Append -Encoding utf8'
       - name: Restore official Android signing key
