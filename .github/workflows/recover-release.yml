@@ -16,39 +16,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  resolve:
-    if: github.repository == 'akky1023/uni-table' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    outputs:
-      tag_name: ${{ steps.release.outputs.tag_name }}
-      sha: ${{ steps.release.outputs.sha }}
-      version: ${{ steps.release.outputs.version }}
-    steps:
-      - name: Resolve an existing draft release and its fixed tag
-        id: release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ inputs.tag }}
-        shell: bash
-        run: |
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid release tag'; exit 1; }
-          release=$(gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG")
-          [[ "$(printf '%s' "$release" | jq -r '.draft')" == true ]] || { echo 'Only draft releases can be recovered'; exit 1; }
-          object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object')
-          for attempt in {1..16}; do
-            [[ "$(printf '%s' "$object" | jq -r '.type')" == tag ]] || break
-            object=$(gh api "repos/$GH_REPO/git/tags/$(printf '%s' "$object" | jq -r '.sha')" --jq '.object')
-          done
-          [[ "$(printf '%s' "$object" | jq -r '.type')" == commit ]] || { echo 'Tag does not resolve to a commit'; exit 1; }
-          sha=$(printf '%s' "$object" | jq -r '.sha')
-          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid source commit'; exit 1; }
-          [[ "$(printf '%s' "$release" | jq -r '.target_commitish')" == "$sha" ]] || { echo 'Draft release and tag disagree'; exit 1; }
-          printf 'tag_name=%s\nsha=%s\nversion=%s\n' "$RELEASE_TAG" "$sha" "${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
-
   build-release:
-    needs: resolve
-    if: needs.resolve.outputs.sha != ''
+    if: github.repository == 'akky1023/uni-table' && github.ref == 'refs/heads/main'
     runs-on: windows-2025
     timeout-minutes: 60
     permissions:
@@ -61,13 +30,34 @@ jobs:
     env:
       # WindowsのDドライブにあるプロジェクトと依存パッケージを同じルートに揃える。
       PUB_CACHE: ${{ github.workspace }}/.tools/pub-cache
-      RELEASE_TAG: ${{ needs.resolve.outputs.tag_name }}
-      RELEASE_SHA: ${{ needs.resolve.outputs.sha }}
-      RELEASE_VERSION: ${{ needs.resolve.outputs.version }}
+      RELEASE_TAG: ${{ inputs.tag }}
     steps:
+      - name: Resolve an existing draft release and its fixed tag
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid release tag.' }
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release lookup failed.' }
+          if (-not $release.draft) { throw 'Only draft releases can be recovered.' }
+          $reference = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Tag lookup failed.' }
+          $object = $reference.object
+          for ($attempt = 0; $object.type -eq 'tag' -and $attempt -lt 16; $attempt++) {
+            $reference = gh api "repos/$env:GITHUB_REPOSITORY/git/tags/$($object.sha)" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Annotated tag lookup failed.' }
+            $object = $reference.object
+          }
+          if ($object.type -ne 'commit' -or $object.sha -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid source commit.' }
+          if ($release.target_commitish -cne $object.sha) { throw 'Draft release and tag disagree.' }
+          "sha=$($object.sha)" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "RELEASE_SHA=$($object.sha)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "RELEASE_VERSION=$($tag.Substring(1))" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.resolve.outputs.sha }}
+          ref: ${{ steps.resolve.outputs.sha }}
           persist-credentials: false
       - name: Verify release identity
         env:
