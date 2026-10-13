@@ -18,7 +18,8 @@ concurrency:
 jobs:
   build-release:
     if: github.repository == 'akky1023/uni-table' && github.ref == 'refs/heads/main'
-    runs-on: windows-2025
+    # 通知プラグインが使用するC++コルーチンに対応したVS 2022環境。
+    runs-on: windows-2022
     timeout-minutes: 60
     permissions:
       contents: write

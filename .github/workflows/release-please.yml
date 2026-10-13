@@ -52,7 +52,8 @@ jobs:
   build-release:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
-    runs-on: windows-2025
+    # 通知プラグインが使用するC++コルーチンに対応したVS 2022環境。
+    runs-on: windows-2022
     timeout-minutes: 60
     permissions:
       contents: write
