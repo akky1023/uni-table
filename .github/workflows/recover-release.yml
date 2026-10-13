@@ -39,9 +39,9 @@ jobs:
         run: |
           $tag = $env:RELEASE_TAG
           if ($tag -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid release tag.' }
-          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" | ConvertFrom-Json
+          $release = gh release view $tag --repo $env:GITHUB_REPOSITORY --json isDraft,targetCommitish | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Draft release lookup failed.' }
-          if (-not $release.draft) { throw 'Only draft releases can be recovered.' }
+          if (-not $release.isDraft) { throw 'Only draft releases can be recovered.' }
           $reference = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Tag lookup failed.' }
           $object = $reference.object
@@ -51,7 +51,7 @@ jobs:
             $object = $reference.object
           }
           if ($object.type -ne 'commit' -or $object.sha -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid source commit.' }
-          if ($release.target_commitish -cne $object.sha) { throw 'Draft release and tag disagree.' }
+          if ($release.targetCommitish -cne $object.sha) { throw 'Draft release and tag disagree.' }
           "sha=$($object.sha)" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
           "RELEASE_SHA=$($object.sha)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           "RELEASE_VERSION=$($tag.Substring(1))" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
