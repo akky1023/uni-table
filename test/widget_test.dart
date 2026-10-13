@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unitable/data/database.dart';
+import 'package:unitable/app_info.dart';
 import 'package:unitable/domain/schedule.dart';
 import 'package:unitable/ui/home.dart';
 import 'package:unitable/ui/annual_calendar.dart';
@@ -670,6 +671,40 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
+
+  for (final desktop in [false, true]) {
+    testWidgets('${desktop ? 'PC' : 'スマホ'}の設定一覧の最後にアプリ情報を表示する', (tester) async {
+      await size(
+          tester, desktop ? const Size(1280, 900) : const Size(320, 844));
+      await tester.pumpWidget(app(desktop: desktop));
+      await tester.pumpAndSettle();
+      await nav(tester, 3);
+      final categories = find.descendant(
+          of: find.byType(ConstrainedBox),
+          matching: find.widgetWithText(ListTile, 'このアプリについて'));
+      expect(categories, findsWidgets);
+      expect(tester.getTopLeft(find.text('このアプリについて')).dy,
+          greaterThan(tester.getTopLeft(find.text('アクセシビリティ')).dy));
+      await tester.tap(find.text('このアプリについて'));
+      await tester.pumpAndSettle();
+      for (final value in [
+        'バージョン: $appVersion',
+        appAuthorName,
+        appAuthorWebsite,
+        appAuthorGitHub,
+        appRepository
+      ]) {
+        expect(
+            find.byWidgetPredicate(
+                (widget) => widget is SelectableText && widget.data == value),
+            findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+      await nav(tester, 3);
+      expect(find.byTooltip('設定一覧に戻る'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 
   for (final desktop in [false, true]) {
     testWidgets('${desktop ? 'PC' : 'スマホ'}でモーダルの背後のナビを維持し設定を再選択すると一覧へ戻る',

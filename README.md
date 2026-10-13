@@ -4,6 +4,8 @@
 
 > READMEは公開準備中の骨子です。スクリーンショット・配布先・操作説明は今後追加します。
 
+リポジトリ: [akky1023/uni-table](https://github.com/akky1023/uni-table)
+
 ## 主な機能
 
 - 時間割: 講義期間別の時間割、日付別の試験時間割、単発講義、休講・代替日・教室変更
@@ -63,6 +65,13 @@ flutter test
 
 ビルドスクリプトは`.tools/flutter`のSDKを優先し、なければPATH上のFlutterを使用します。成果物とSHA-256チェックサムは`dist/`に出力します。
 
+確認用の未署名MSIXは次のコマンドで作成できます。Windows SDKのMakeAppxを使用し、証明書のインストールは行いません。配布・通常のインストール用には署名の準備が必要です。
+
+```powershell
+.\scripts\build-msix.ps1
+# Windowsリリースをビルド済みの場合: -SkipBuild
+```
+
 Androidの署名情報は`android/key.properties`または`.tools/signing/android-key.properties`から読み込みます。[設定例](android/key.properties.example)を参照してください。ビルドスクリプトは未設定の開発環境では署名鍵を生成します。公式配布の更新には同じ鍵が必要なため、既存の署名鍵は別途保管し、Gitには登録しません。
 
 ### ディレクトリ
@@ -85,6 +94,10 @@ Androidの署名情報は`android/key.properties`または`.tools/signing/androi
 
 ## ライセンス・クレジット
 
-アプリ本体のライセンス: **公開前に決定予定**。
+制作者: [akky_1023](https://github.com/akky1023) / [HP](https://neomenia.net/)
+
+アプリ内の制作者情報・URL・表示バージョンは`lib/app_info.dart`で変更できます。
+
+アプリ本体は[MIT License](LICENSE)で公開します。著作権表記はGitHubリポジトリのライセンスに合わせています。
 
 同梱のNoto Sans JPはSIL Open Font License 1.1です。[ライセンス全文](assets/fonts/OFL.txt)を同梱しています。依存ライブラリ・データのクレジットは今後整理します。

@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:path/path.dart' as p;
+import '../app_info.dart';
 import '../data/database.dart';
 import '../domain/schedule.dart';
 import '../domain/periods.dart';
@@ -3214,10 +3215,36 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       'display': '表示設定',
       if (!desktop) 'operations': '操作設定',
       'notifications': '通知',
-      'accessibility': 'アクセシビリティ'
+      'accessibility': 'アクセシビリティ',
+      'about': 'このアプリについて',
     };
     final contents = <Widget>[];
     switch (settingsCategory) {
+      case 'about':
+        contents.addAll([
+          section('うに時間割', [
+            const SelectableText('バージョン: $appVersion'),
+          ]),
+          section('制作者', [
+            const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('名前'),
+                subtitle: SelectableText(appAuthorName)),
+            const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('HP'),
+                subtitle: SelectableText(appAuthorWebsite)),
+            const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('GitHub'),
+                subtitle: SelectableText(appAuthorGitHub)),
+          ]),
+          section('ソースコード', [
+            const SelectableText(appRepository),
+          ]),
+          section('ライセンス', [const SelectableText('MIT License')]),
+        ]);
+        break;
       case 'general':
         contents.add(section('ファイル', [
           SelectableText(widget.storage.location,

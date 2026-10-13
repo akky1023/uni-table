@@ -1,7 +1,7 @@
 name: unitable
 description: 完全ローカルの大学生向け時間割・課題・年間予定管理
 publish_to: none
-version: 0.1.12+16
+version: 1.0.0+17
 environment:
   sdk: '>=3.6.0 <4.0.0'
 dependencies:
@@ -26,6 +26,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - LICENSE
     - assets/holidays.json
     - assets/fonts/OFL.txt
   fonts:
@@ -36,5 +37,5 @@ msix_config:
   display_name: うに時間割
   publisher_display_name: うに時間割
   identity_name: UniTable.Local
-  msix_version: 0.1.12.0
+  msix_version: 1.0.0.0
   capabilities: ''

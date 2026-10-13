@@ -86,6 +86,7 @@ if ($Target -in @('all','windows')) {
     }
     New-Item -ItemType Directory -Force $bundle | Out-Null
     Copy-Item -Path (Join-Path $release '*') -Destination $bundle -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination (Join-Path $bundle 'LICENSE') -Force
     # App-local MSVC runtime enables the portable build without a separate installer.
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
