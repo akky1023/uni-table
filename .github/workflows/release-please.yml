@@ -62,6 +62,8 @@ jobs:
       run:
         shell: pwsh
     env:
+      # WindowsのDドライブにあるプロジェクトと依存パッケージを同じルートに揃える。
+      PUB_CACHE: ${{ github.workspace }}/.tools/pub-cache
       RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
       RELEASE_SHA: ${{ needs.release-please.outputs.sha }}
       RELEASE_VERSION: ${{ needs.release-please.outputs.version }}

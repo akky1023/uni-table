@@ -117,6 +117,7 @@ flutter test
 - 必要なSecretsは`ANDROID_KEYSTORE_BASE64`、`ANDROID_STORE_PASSWORD`、`ANDROID_KEY_PASSWORD`、`ANDROID_KEY_ALIAS`です。既存の公式APKの署名情報を登録済みです。登録が欠けている場合は配布ビルドを停止し、公開しません。
 - メンテナーはローカルの署名鍵（`.jks`）とパスワードを含む`android-key.properties`を別途バックアップしてください。現在の保管先は`.tools/signing/`です。このフォルダーはGit管理外なので、リポジトリのcloneだけでは復元できません。別の場所へ復元するときは`storeFile`のパスを合わせます。
 - ビルドやアップロードに失敗したReleaseは下書きのまま残します。原因を修正したうえで、GitHub Actionsの「失敗したジョブを再実行」を使います。公開済みのReleaseは上書きしません。
+- ビルド環境やワークフローの修正が必要な場合は、`Recover draft release`を`main`から手動実行し、下書きのタグを指定します。タグと下書きのコミットが一致することを検証し、その元のソースを再ビルドします。タグは付け直しません。ビルド証明には復旧ワークフローの情報と実際のアプリのソースを記録します。アプリのコード自体を修正する場合は、新しい版としてリリースしてください。
 - 配布対象はAPK、Windowsインストーラー、ポータブルZIPです。MSIXは署名・インストール・通知の検証が済むまで公式配布物に含めません。
 - リリース処理は`main`の正規リポジトリだけで実行し、Release Pleaseと使用するActionsをコミットSHAに固定します。更新はDependabotのPRをレビューして取り込みます。
 

@@ -1,0 +1,160 @@
+name: Recover draft release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '再ビルドする下書きReleaseのタグ（例: v1.0.1）'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: github.repository == 'akky1023/uni-table' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Resolve an existing draft release and its fixed tag
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid release tag'; exit 1; }
+          release=$(gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG")
+          [[ "$(printf '%s' "$release" | jq -r '.draft')" == true ]] || { echo 'Only draft releases can be recovered'; exit 1; }
+          object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object')
+          for attempt in {1..16}; do
+            [[ "$(printf '%s' "$object" | jq -r '.type')" == tag ]] || break
+            object=$(gh api "repos/$GH_REPO/git/tags/$(printf '%s' "$object" | jq -r '.sha')" --jq '.object')
+          done
+          [[ "$(printf '%s' "$object" | jq -r '.type')" == commit ]] || { echo 'Tag does not resolve to a commit'; exit 1; }
+          sha=$(printf '%s' "$object" | jq -r '.sha')
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid source commit'; exit 1; }
+          [[ "$(printf '%s' "$release" | jq -r '.target_commitish')" == "$sha" ]] || { echo 'Draft release and tag disagree'; exit 1; }
+          printf 'tag_name=%s\nsha=%s\nversion=%s\n' "$RELEASE_TAG" "$sha" "${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+
+  build-release:
+    needs: resolve
+    if: needs.resolve.outputs.sha != ''
+    runs-on: windows-2025
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      # WindowsのDドライブにあるプロジェクトと依存パッケージを同じルートに揃える。
+      PUB_CACHE: ${{ github.workspace }}/.tools/pub-cache
+      RELEASE_TAG: ${{ needs.resolve.outputs.tag_name }}
+      RELEASE_SHA: ${{ needs.resolve.outputs.sha }}
+      RELEASE_VERSION: ${{ needs.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - name: Verify release identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ($env:RELEASE_TAG -cne "v$env:RELEASE_VERSION") { throw 'Release tag mismatch.' }
+          if ((git rev-parse HEAD) -cne $env:RELEASE_SHA) { throw 'Release commit mismatch.' }
+          $version = [regex]::Match((Get-Content pubspec.yaml -Raw), '(?m)^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$')
+          if (-not $version.Success -or $version.Groups[1].Value -cne $env:RELEASE_VERSION) { throw 'Release version mismatch.' }
+          $code = [long]$version.Groups[2].Value
+          if ($code -lt 18 -or $code -gt 2100000000) { throw 'Android build number out of range.' }
+          $release = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json isDraft | ConvertFrom-Json
+          if (-not $release.isDraft) { throw 'Published releases must not be overwritten.' }
+      - name: Install pinned Flutter SDK
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: flutter/flutter
+          ref: abaf9c523780a608bd46686fd5e53740a07077f8 # 3.47.7
+          path: .tools/flutter
+          persist-credentials: false
+      - name: Restore verified Flutter version tag
+        run: |
+          git -C .tools/flutter fetch --no-tags --depth 1 origin tag 3.47.7
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter version tag fetch failed.' }
+          if ((git -C .tools/flutter rev-parse 'refs/tags/3.47.7^{commit}') -cne 'abaf9c523780a608bd46686fd5e53740a07077f8') { throw 'Flutter version tag was changed.' }
+      - name: Add Flutter to PATH
+        run: '"$env:GITHUB_WORKSPACE\.tools\flutter\bin" | Out-File $env:GITHUB_PATH -Append -Encoding utf8'
+      - name: Restore official Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in @('ANDROID_KEYSTORE_BASE64', 'ANDROID_STORE_PASSWORD', 'ANDROID_KEY_PASSWORD', 'ANDROID_KEY_ALIAS')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) { throw "Missing repository secret: $name" }
+          }
+          $signing = Join-Path $env:GITHUB_WORKSPACE '.tools/signing'
+          New-Item -ItemType Directory -Force $signing | Out-Null
+          $keyStore = Join-Path $signing 'unitable-release.jks'
+          [IO.File]::WriteAllBytes($keyStore, [Convert]::FromBase64String($env:ANDROID_KEYSTORE_BASE64))
+          $properties = "storeFile=$($keyStore.Replace('\','/'))`nstorePassword=$env:ANDROID_STORE_PASSWORD`nkeyPassword=$env:ANDROID_KEY_PASSWORD`nkeyAlias=$env:ANDROID_KEY_ALIAS`n"
+          [IO.File]::WriteAllText((Join-Path $signing 'android-key.properties'), $properties, [Text.UTF8Encoding]::new($false))
+      - name: Prepare toolchains and locked dependencies
+        run: |
+          & scripts/setup-windows.ps1
+          & scripts/setup-android.ps1 -AcceptLicenses
+          flutter pub get --enforce-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Locked dependency restore failed.' }
+      - name: Build and verify release packages
+        run: '& scripts/build-release.ps1 -Target all -SkipRestore'
+      - name: Generate trusted workflow provenance
+        id: provenance
+        uses: actions/attest-build-provenance/predicate@864457a58d4733d7f1574bd8821fa24e02cf7538 # predicate v2.0.0
+      - name: Record the tagged application source
+        env:
+          WORKFLOW_PREDICATE: ${{ steps.provenance.outputs.predicate }}
+        run: |
+          $predicate = ConvertFrom-Json -InputObject $env:WORKFLOW_PREDICATE -AsHashtable
+          $source = @{ name = 'application-source'; uri = "git+$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY@refs/tags/$env:RELEASE_TAG"; digest = @{ gitCommit = $env:RELEASE_SHA } }
+          # 公式生成のワークフロー情報は保持し、実際にビルドしたタグのソースを追加する。
+          $predicate.buildDefinition.resolvedDependencies = @($source) + @($predicate.buildDefinition.resolvedDependencies)
+          [IO.File]::WriteAllText((Join-Path $env:GITHUB_WORKSPACE '.tools/release-provenance.json'), (ConvertTo-Json -InputObject $predicate -Depth 30 -Compress), [Text.UTF8Encoding]::new($false))
+      - name: Attest recovered release provenance
+        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0
+        with:
+          predicate-type: ${{ steps.provenance.outputs.predicate-type }}
+          predicate-path: .tools/release-provenance.json
+          subject-path: |
+            dist/*.apk
+            dist/*-setup.exe
+            dist/*.zip
+            dist/SHA256SUMS.txt
+      - name: Attach artifacts and publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $artifacts = @(Get-ChildItem dist -File | Where-Object { $_.Extension -in '.apk', '.exe', '.zip' -or $_.Name -eq 'SHA256SUMS.txt' } | Select-Object -ExpandProperty FullName)
+          gh release upload $env:RELEASE_TAG @artifacts --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed.' }
+          gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
+      - name: Remove signing material
+        if: always()
+        run: |
+          $target = [IO.Path]::GetFullPath((Join-Path $env:GITHUB_WORKSPACE '.tools/signing'))
+          $root = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE) + [IO.Path]::DirectorySeparatorChar
+          if (-not $target.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid signing cleanup path.' }
+          if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
