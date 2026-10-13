@@ -62,7 +62,7 @@ jobs:
       RELEASE_SHA: ${{ needs.release-please.outputs.sha }}
       RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.release-please.outputs.sha }}
           persist-credentials: false
@@ -79,7 +79,7 @@ jobs:
           $release = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json isDraft | ConvertFrom-Json
           if (-not $release.isDraft) { throw 'Published releases must not be overwritten.' }
       - name: Install pinned Flutter SDK
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: flutter/flutter
           ref: abaf9c523780a608bd46686fd5e53740a07077f8 # 3.47.7
