@@ -1,7 +1,7 @@
 name: unitable
 description: 完全ローカルの大学生向け時間割・課題・年間予定管理
 publish_to: none
-version: 1.0.0+17
+version: 1.0.1+18
 environment:
   sdk: '>=3.10.0 <4.0.0'
 dependencies:
