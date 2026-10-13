@@ -86,6 +86,7 @@ Androidの署名情報は`android/key.properties`または`.tools/signing/androi
 | `lib/ui/` | 画面・テーマ・操作 |
 | `test/` | 自動テスト |
 | `assets/` | フォント・祝日データ |
+| `assets/icons/` | アプリアイコンのSVG原本・各解像度のWebP / PNG（[利用・再生成方法](assets/icons/README.md)） |
 | `scripts/`, `packaging/` | 開発・配布用スクリプト |
 
 ## 現時点の補足
