@@ -7,6 +7,7 @@
 - `webp/app_icon_<サイズ>.webp`: 16、20、24、32、40、48、64、72、96、128、144、192、256、384、512、768、1024px。可逆圧縮、正方形。
 - `app_icon_512.png`: ストア掲載などPNGが必要な用途。
 - `app_icon_1024.png`: MSIXのロゴ生成元。
+- `installer-wizard.png`: Windowsインストーラーの開始・完了画面用画像。ウニアイコンを縦長の背景の中央に配置。
 
 SVGとWebPはFlutterのアセットにも登録済みです。WebPは `Image.asset('assets/icons/webp/app_icon_128.webp')` などで利用できます。SVGの描画には別途SVG対応の描画処理が必要です。
 
@@ -14,6 +15,7 @@ SVGとWebPはFlutterのアセットにも登録済みです。WebPは `Image.ass
 
 - Android: `android/app/src/main/res/mipmap-*/ic_launcher.png` は48〜192px。Android 8以降は `mipmap-anydpi-v26/ic_launcher.xml` のアダプティブアイコンを使います。背景色とベクターの前景を分離し、ウニが各ランチャーの形状で欠けないよう安全領域に収めています。Android 13以降はモノクロのテーマアイコンにも対応します。
 - Windows: `windows/runner/resources/app_icon.ico` に16、20、24、32、40、48、64、128、256pxを収録。実行ファイル、ショートカット、インストーラーが使用します。MSIXは `pubspec.yaml` の `logo_path` を使用します。
+- Windowsのインストール画面: 右上に `app_icon_512.png`、開始・完了画面の左側に `installer-wizard.png` を使用します。画面内の画像は実行ファイル用のICOとは別に設定しています。
 
 ## 再生成
 
