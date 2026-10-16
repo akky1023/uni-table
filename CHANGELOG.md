@@ -2,6 +2,15 @@
 
 次のリリースからRelease Pleaseが自動更新します。
 
+## [1.1.1](https://github.com/akky1023/uni-table/compare/v1.1.0...v1.1.1) (2026-10-16)
+
+
+### 修正
+
+* Android署名情報とWindowsインストール画面を修正 ([e2f65ef](https://github.com/akky1023/uni-table/commit/e2f65ef8e707815a2ffc8650571920100870bb80))
+* Android署名者情報を更新し表示テストの日付依存を解消 ([df51d27](https://github.com/akky1023/uni-table/commit/df51d272fff696b6948660d4fe895e536bd10a50))
+* **installer:** Windowsのインストール画面にウニアイコンを反映 ([5e71ce5](https://github.com/akky1023/uni-table/commit/5e71ce5e5a5a27f880461609509a9423d7f96ab7))
+
 ## [1.1.0](https://github.com/akky1023/uni-table/compare/v1.0.1...v1.1.0) (2026-10-13)
 
 
