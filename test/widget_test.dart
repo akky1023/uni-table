@@ -345,7 +345,9 @@ void main() {
 
   testWidgets('320pxでも色覚記号・期間選択と年間予定の複数記号を収める', (tester) async {
     populate();
-    final today = dateOnly(DateTime.now());
+    // 初期表示の月曜に記号を配置し、実行曜日や日曜の非表示に依存させない。
+    final now = dateOnly(DateTime.now());
+    final firstDay = shiftDay(now, DateTime.monday - now.weekday);
     storage.database.transaction(() {
       for (final key in ['accessibility_marks', 'reduce_motion', 'dark_text']) {
         storage.database.put('settings', {'id': key, 'value': '1'});
@@ -353,30 +355,30 @@ void main() {
       storage.database
           .put('settings', {'id': 'timetable_scroll', 'value': 'smooth'});
       storage.database.put('day_changes',
-          {'id': 'substitute', 'date': dayKey(today), 'source_weekday': 1});
+          {'id': 'substitute', 'date': dayKey(firstDay), 'source_weekday': 1});
       storage.database.put('events', {
         'id': 'overlap',
         'kind': 'teaching',
-        'start_date': dayKey(today),
-        'end_date': dayKey(shiftDay(today, 10))
+        'start_date': dayKey(firstDay),
+        'end_date': dayKey(shiftDay(firstDay, 10))
       });
       storage.database.put('events', {
         'id': 'exam',
         'kind': 'exam',
-        'start_date': dayKey(today),
-        'end_date': dayKey(shiftDay(today, 10))
+        'start_date': dayKey(firstDay),
+        'end_date': dayKey(shiftDay(firstDay, 10))
       });
       storage.database.put('meetings', {
         'id': 'single',
         'course_id': 'c0',
         'slot_id': 'slot-5',
-        'once_date': dayKey(today)
+        'once_date': dayKey(firstDay)
       });
       storage.database.put('meetings', {
         'id': 'exam-m',
         'course_id': 'c1',
         'slot_id': 'slot-1',
-        'once_date': dayKey(shiftDay(today, 1)),
+        'once_date': dayKey(shiftDay(firstDay, 1)),
         'exam_period_id': 'exam'
       });
     });

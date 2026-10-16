@@ -76,6 +76,8 @@ flutter test
 
 Androidの署名情報は`android/key.properties`または`.tools/signing/android-key.properties`から読み込みます。[設定例](android/key.properties.example)を参照してください。ビルドスクリプトは未設定の開発環境では署名鍵を生成します。公式配布の更新には同じ鍵が必要なため、既存の署名鍵は別途保管し、Gitには登録しません。
 
+署名証明書の制作者名は`akky_1023`、組織名は`Neomenia`、国は`JP`、ドメインはSANの`DNS:neomenia.net`です。公式配布用の公開証明書は`android/release-signing-certificate.pem`に保存し、CIでは秘密鍵を復元した後に適用します。証明書の適用処理は公開鍵の一致を確認し、変更前のキーストアを同じディレクトリにバックアップします。旧証明書のAPKからは通常の上書き更新ができないため、入れ替えが必要です。
+
 ### ディレクトリ
 
 | 場所 | 内容 |

@@ -109,6 +109,16 @@ jobs:
           & scripts/setup-android.ps1 -AcceptLicenses
           flutter pub get --enforce-lockfile
           if ($LASTEXITCODE -ne 0) { throw 'Locked dependency restore failed.' }
+      - name: Apply official Android signing certificate
+        env:
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          $java = Get-ChildItem '.tools/jdk/*/bin/java.exe' | Select-Object -First 1
+          if (-not $java) { throw 'Java toolchain is missing.' }
+          & $java.FullName scripts/ApplyAndroidSigningCertificate.java .tools/signing/unitable-release.jks $env:ANDROID_KEY_ALIAS android/release-signing-certificate.pem
+          if ($LASTEXITCODE -ne 0) { throw 'Android signing certificate update failed.' }
       - name: Build and verify release packages
         run: '& scripts/build-release.ps1 -Target all -SkipRestore'
       - name: Generate trusted workflow provenance

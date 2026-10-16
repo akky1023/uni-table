@@ -28,6 +28,10 @@ async function main() {
   for (const size of [512, 1024]) {
     await write(`assets/icons/app_icon_${size}.png`, await render(size).png().toBuffer());
   }
+  // Inno Setup's welcome/completion image uses a 164:314 aspect ratio.
+  await write('assets/icons/installer-wizard.png', await sharp({
+    create: { width: 328, height: 628, channels: 4, background },
+  }).composite([{ input: await render(256).png().toBuffer(), gravity: 'centre' }]).png().toBuffer());
   for (const [density, size] of Object.entries(densities)) {
     await write(`${res}/mipmap-${density}/ic_launcher.png`, await render(size).png().toBuffer());
   }

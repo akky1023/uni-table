@@ -48,7 +48,7 @@ if ($Target -in @('all','android')) {
         $password = [Convert]::ToBase64String($random)
         $passwordFile = Join-Path $signingRoot 'password.txt'
         [IO.File]::WriteAllText($passwordFile, $password, [Text.UTF8Encoding]::new($false))
-        & (Join-Path $jdk.FullName 'bin\keytool.exe') -genkeypair -keystore $keyStore -storetype JKS -alias unitable -keyalg RSA -keysize 3072 -validity 10000 -dname 'CN=UniTable, OU=Local Application, O=UniTable, C=JP' "-storepass:file" $passwordFile "-keypass:file" $passwordFile
+        & (Join-Path $jdk.FullName 'bin\keytool.exe') -genkeypair -keystore $keyStore -storetype JKS -alias unitable -keyalg RSA -keysize 3072 -validity 10000 -dname 'CN=akky_1023, O=Neomenia, C=JP' -ext 'SAN=DNS:neomenia.net' "-storepass:file" $passwordFile "-keypass:file" $passwordFile
         Assert-Exit 'APK signing key creation'
         $propertyText = "storeFile=$($keyStore.Replace('\','/'))`nstorePassword=$password`nkeyPassword=$password`nkeyAlias=unitable`n"
         [IO.File]::WriteAllText($properties, $propertyText, [Text.UTF8Encoding]::new($false))
