@@ -12,6 +12,11 @@ const appRepository = 'https://github.com/akky1023/uni-table';
 // 埋め込み値のない実行環境では、端末側のアプリ情報を利用します。
 Future<String> loadAppVersion() async {
   const version = String.fromEnvironment('FLUTTER_BUILD_NAME');
-  if (version.isNotEmpty) return version;
-  return (await PackageInfo.fromPlatform()).version;
+  final value = version.isNotEmpty
+      ? version
+      : (await PackageInfo.fromPlatform()).version;
+  return const bool.fromEnvironment('UNITABLE_LOCAL_BUILD') &&
+          !value.startsWith('test+')
+      ? 'test+$value'
+      : value;
 }

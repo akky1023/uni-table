@@ -1351,6 +1351,97 @@ void main() {
         isFalse);
     await tester.pumpWidget(const SizedBox());
   });
+  for (final reduceMotion in [false, true]) {
+    testWidgets('休日の定義は全画面で選択曜日の限定条件だけ展開する（動きを減らす: $reduceMotion）', (tester) async {
+      storage.database.transaction(() {
+        storage.database.put('settings',
+            {'id': 'reduce_motion', 'value': reduceMotion ? '1' : '0'});
+        storage.database.put('settings', {
+          'id': 'notification_holidays',
+          'value': '{"closures":true,"weekdays":[],"no_classes":false}'
+        });
+      });
+      await size(tester, const Size(390, 844));
+      await tester.pumpWidget(app(desktop: false));
+      await tester.pumpAndSettle();
+      await nav(tester, 3);
+      await tester.tap(find.text('通知'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('休日の定義'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      final modal = find.ancestor(of: find.text('休日の定義'),
+          matching: find.byType(Scaffold)).first;
+      expect(tester.getSize(modal), const Size(390, 844));
+      expect(find.text('講義がない日に限定する'), findsNothing);
+      final noClasses = find.widgetWithText(SelectionCheck, '講義がない日');
+      final monday = find.byKey(const ValueKey('holiday-weekday-1'));
+      expect(tester.getCenter(monday).dy - tester.getCenter(noClasses).dy, 56);
+      for (var day = 1; day < 7; day++) {
+        final current = find.byKey(ValueKey('holiday-weekday-$day'));
+        final next = find.byKey(ValueKey('holiday-weekday-${day + 1}'));
+        expect(tester.getCenter(next).dy - tester.getCenter(current).dy, 56);
+      }
+
+      for (var day = 1; day <= 7; day++) {
+        final weekday = find.byKey(ValueKey('holiday-weekday-$day'));
+        final condition = find.byKey(ValueKey('holiday-only-no-classes-$day'));
+        await tester.ensureVisible(weekday);
+        await tester.tap(weekday);
+        await tester.pump();
+        final expansion = reduceMotion ? condition : find.ancestor(of: condition,
+            matching: find.byType(SizeTransition)).first;
+        await tester.pump(const Duration(milliseconds: 50));
+        final intermediateHeight = tester.getSize(expansion).height;
+        if (!reduceMotion) {
+          final slide = tester.widget<SlideTransition>(find.ancestor(
+              of: condition, matching: find.byType(SlideTransition)).first);
+          expect(slide.position.value.dy, lessThan(0));
+        }
+        await tester.pumpAndSettle();
+        final expandedHeight = tester.getSize(expansion).height;
+        expect(expandedHeight, greaterThan(0));
+        if (reduceMotion) {
+          expect(intermediateHeight, expandedHeight);
+        } else {
+          expect(intermediateHeight, lessThan(expandedHeight));
+        }
+        final weekdayBottom = tester.getBottomLeft(weekday).dy;
+        expect(tester.getTopLeft(condition).dy, weekdayBottom);
+        expect(tester.getSize(weekday).height, 48);
+        await tester.ensureVisible(condition);
+        await tester.tap(find.descendant(of: condition,
+            matching: find.byType(ListTile)));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(weekday);
+        await tester.tap(weekday);
+        await tester.pumpAndSettle();
+        expect(condition, findsNothing);
+        await tester.tap(weekday);
+        await tester.pumpAndSettle();
+        expect(tester.widget<AppToggle>(find.descendant(of: condition,
+            matching: find.byType(AppToggle))).value, isTrue);
+      }
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+      final saved = jsonDecode(storage.database.data.setting(
+          'notification_holidays', '{}')) as Map;
+      expect(saved['weekdays'], [1, 2, 3, 4, 5, 6, 7]);
+      expect(saved['only_no_classes'], [1, 2, 3, 4, 5, 6, 7]);
+      await tester.tap(find.text('休日の定義'));
+      await tester.pumpAndSettle();
+      expect(find.text('講義がない日に限定する'), findsNWidgets(7));
+      await tester.tap(find.byKey(const ValueKey('holiday-weekday-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('キャンセル'));
+      await tester.pumpAndSettle();
+      expect(jsonDecode(storage.database.data.setting(
+          'notification_holidays', '{}')), saved);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
   testWidgets('アクセシビリティの印・文字色・動きの設定は端末に保存し画面へ反映する', (tester) async {
     await size(tester, const Size(390, 844));
     await tester.pumpWidget(app(desktop: false));

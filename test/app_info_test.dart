@@ -17,7 +17,8 @@ void main() {
     );
     expect(
       await loadAppVersion(),
-      buildVersion.isEmpty ? '2.4.6' : buildVersion,
+      '${const bool.fromEnvironment('UNITABLE_LOCAL_BUILD') ? 'test+' : ''}'
+      '${buildVersion.isEmpty ? '2.4.6' : buildVersion}',
     );
   });
   test('配布版の番号はpubspecだけで管理しMSIXの手動指定を残さない', () {

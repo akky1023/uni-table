@@ -12,10 +12,12 @@ val signingFile = rootProject.file("key.properties").takeIf { it.exists() }
     ?: rootProject.file("../.tools/signing/android-key.properties")
 if (signingFile.exists()) signingFile.inputStream().use { signingProperties.load(it) }
 
-val notificationTest = providers.gradleProperty("dart-defines").orNull
+val dartDefines = providers.gradleProperty("dart-defines").orNull
     ?.split(",")
     ?.map { String(Base64.getDecoder().decode(it), Charsets.UTF_8) }
-    ?.contains("UNITABLE_NOTIFICATION_TEST=true") == true
+    ?: emptyList()
+val notificationTest = dartDefines.contains("UNITABLE_NOTIFICATION_TEST=true")
+val localBuild = dartDefines.contains("UNITABLE_LOCAL_BUILD=true")
 
 android {
     namespace = "net.neomenia.unitable"
@@ -43,7 +45,7 @@ android {
         // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
         // flag during build.
         versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionName = if (localBuild) "test+${flutter.versionName}" else flutter.versionName
     }
 
     signingConfigs {

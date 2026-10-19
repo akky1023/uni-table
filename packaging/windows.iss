@@ -1,6 +1,9 @@
 #ifndef AppVersion
   #define AppVersion "0.1.0"
 #endif
+#ifndef DisplayVersion
+  #define DisplayVersion AppVersion
+#endif
 #ifndef BundleDir
   #error BundleDir must be provided by build-release.ps1
 #endif
@@ -23,7 +26,8 @@
 [Setup]
 AppId={#PackageId}
 AppName={#PackageName}
-AppVersion={#AppVersion}
+AppVersion={#DisplayVersion}
+VersionInfoVersion={#AppVersion}
 AppPublisher=UniTable
 DefaultDirName={localappdata}\Programs\{#InstallFolder}
 DefaultGroupName={#PackageName}
@@ -32,7 +36,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 OutputDir={#OutputDir}
-OutputBaseFilename=UniTable-{#AppVersion}-windows-x64{#VariantSuffix}-setup
+OutputBaseFilename=UniTable-{#DisplayVersion}-windows-x64{#VariantSuffix}-setup
 UninstallDisplayIcon={app}\UniTable.exe
 SetupIconFile=..\windows\runner\resources\app_icon.ico
 WizardSmallImageFile=..\assets\icons\app_icon_512.png

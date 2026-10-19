@@ -69,6 +69,8 @@ flutter test
 
 ビルドスクリプトは`.tools/flutter`のSDKを優先し、なければPATH上のFlutterを使用します。成果物とSHA-256チェックサムは`dist/`に出力します。
 
+`build-release.ps1`をローカルで実行すると、アプリ内のバージョンと成果物名は`test+1.0.1`の形式になります（番号は`pubspec.yaml`から取得）。Androidのバージョン名にも同じ表記を使用します。GitHub Actions上、または`-OfficialRelease`指定時は通常の番号を使用します。Flutterを直接実行する場合は`--dart-define=UNITABLE_LOCAL_BUILD=true`を指定してください。
+
 GitHubのリリース作成・下書きリリース復旧では、通常版とデバッグ版を両方ビルドして配布します。デバッグ版のファイル名は `UniTable-<version>-android-debug.apk`、`UniTable-<version>-windows-x64-debug-setup.exe`、`UniTable-<version>-windows-x64-debug.zip` です。通常版と同じ署名・チェックサム・来歴証明の対象になります。AndroidはアプリID末尾の `.debug`、Windowsはインストール先・ショートカット・端末設定の保存先で通常版と分離します。
 
 確認用の未署名MSIXは次のコマンドで作成できます。Windows SDKのMakeAppxを使用し、証明書のインストールは行いません。配布・通常のインストール用には署名の準備が必要です。

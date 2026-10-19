@@ -3842,55 +3842,102 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<void> editHolidayDefinition() async {
     final options = Map<String, dynamic>.from(holidayOptions);
     final days = (options['weekdays'] as List? ?? []).cast<int>().toSet();
-    final onlyEmpty =
-        (options['only_no_classes'] as List? ?? []).cast<int>().toSet();
+    final onlyEmpty = (options['only_no_classes'] as List? ?? [])
+        .cast<int>()
+        .toSet();
     await editForm(
-        context,
-        '休日の定義',
-        (_, set) => Column(children: [
-              SelectionCheck(
-                  label: const Text('休業日・祝日'),
-                  selected: options['closures'] == true,
-                  onSelected: (v) => set(() => options['closures'] = v)),
-              SelectionCheck(
-                  label: const Text('講義がない日'),
-                  selected: options['no_classes'] == true,
-                  onSelected: (v) => set(() => options['no_classes'] = v)),
-              for (var day = 1; day <= 7; day++)
-                Column(children: [
+      context,
+      '休日の定義',
+      (ctx, set) => Column(
+        children: [
+          SelectionCheck(
+            label: const Text('休業日・祝日'),
+            selected: options['closures'] == true,
+            onSelected: (v) => set(() => options['closures'] = v),
+          ),
+          SelectionCheck(
+            label: const Text('講義がない日'),
+            selected: options['no_classes'] == true,
+            onSelected: (v) => set(() => options['no_classes'] = v),
+          ),
+          const SizedBox(height: 4),
+          for (var day = 1; day <= 7; day++)
+            ListTileTheme.merge(
+              minTileHeight: 48,
+              minVerticalPadding: 0,
+              child: Column(
+                children: [
                   SelectionCheck(
-                      key: ValueKey('holiday-weekday-$day'),
-                      label: Text('${weekdays[day - 1]}曜日'),
-                      selected: days.contains(day),
-                      onSelected: (v) => set(() {
-                            if (v) {
-                              days.add(day);
-                            } else {
-                              days.remove(day);
-                            }
-                          })),
-                  Padding(
-                      padding: const EdgeInsets.only(left: 32, bottom: 8),
-                      child: preferenceSwitch(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('講義がない日に限定する'),
-                          value: onlyEmpty.contains(day),
-                          onChanged: !days.contains(day)
-                              ? null
-                              : (v) => set(() {
-                                    if (v) {
-                                      onlyEmpty.add(day);
-                                    } else {
-                                      onlyEmpty.remove(day);
-                                    }
-                                  }))),
-                ]),
-            ]), () async {
-      options['weekdays'] = days.toList()..sort();
-      options['only_no_classes'] = onlyEmpty.toList()..sort();
-      await setting('notification_holidays', jsonEncode(options));
-      return true;
-    });
+                    key: ValueKey('holiday-weekday-$day'),
+                    label: Text('${weekdays[day - 1]}曜日'),
+                    selected: days.contains(day),
+                    onSelected: (v) => set(() {
+                      if (v) {
+                        days.add(day);
+                      } else {
+                        days.remove(day);
+                      }
+                    }),
+                  ),
+                  Builder(
+                    builder: (ctx) {
+                      final child = days.contains(day)
+                          ? Padding(
+                              key: ValueKey('holiday-only-no-classes-$day'),
+                              padding: const EdgeInsets.only(
+                                left: 32,
+                              ),
+                              child: preferenceSwitch(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('講義がない日に限定する'),
+                                value: onlyEmpty.contains(day),
+                                onChanged: (v) => set(() {
+                                  if (v) {
+                                    onlyEmpty.add(day);
+                                  } else {
+                                    onlyEmpty.remove(day);
+                                  }
+                                }),
+                              ),
+                            )
+                          : const SizedBox.shrink();
+                      if (MediaQuery.disableAnimationsOf(ctx)) return child;
+                      return AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) => ClipRect(
+                          child: SizeTransition(
+                            sizeFactor: animation,
+                            alignment: Alignment.topCenter,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, -1),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          ),
+                        ),
+                        child: child,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+        ],
+      ),
+      () async {
+        options['weekdays'] = days.toList()..sort();
+        options['only_no_classes'] = onlyEmpty.toList()..sort();
+        await setting('notification_holidays', jsonEncode(options));
+        return true;
+      },
+      fullScreen: true,
+      topAligned: true,
+    );
   }
 
   Map<String, dynamic> get holidayOptions => jsonDecode(data.setting(

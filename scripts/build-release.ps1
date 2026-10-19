@@ -3,7 +3,8 @@ param(
     [switch]$SkipChecks,
     [switch]$SkipRestore,
     [switch]$PortableOnly,
-    [switch]$IncludeDebugBuilds
+    [switch]$IncludeDebugBuilds,
+    [switch]$OfficialRelease
 )
 $ErrorActionPreference = 'Stop'
 $buildVariants = @($false)
@@ -16,6 +17,13 @@ if (-not (Test-Path -LiteralPath $flutter)) { $flutter = (Get-Command flutter -E
 $dart = Join-Path (Split-Path $flutter -Parent) 'dart.bat'
 $version = [regex]::Match((Get-Content pubspec.yaml -Raw), '(?m)^version:\s*([\d.]+)\+(\d+)').Groups[1].Value
 if (-not $version) { throw 'Cannot determine application version.' }
+$packageVersion = $version
+$localBuild = -not ($OfficialRelease -or $env:GITHUB_ACTIONS -eq 'true')
+$buildArgs = @()
+if ($localBuild) {
+    $version = "test+$packageVersion"
+    $buildArgs += '--dart-define=UNITABLE_LOCAL_BUILD=true'
+}
 $dist = Join-Path $projectRoot 'dist'
 New-Item -ItemType Directory -Force $dist | Out-Null
 $jdk = Get-ChildItem (Join-Path $toolsRoot 'jdk') -Directory -ErrorAction SilentlyContinue | Where-Object { Test-Path (Join-Path $_.FullName 'bin\java.exe') } | Select-Object -First 1
@@ -60,7 +68,7 @@ if ($Target -in @('all','android')) {
         Write-Output 'Created persistent APK signing key in .tools/signing. Back up this directory securely.'
     }
     foreach ($debugBuild in $buildVariants) {
-        $variantArgs = @()
+        $variantArgs = @($buildArgs)
         if ($debugBuild) { $variantArgs += '--dart-define=UNITABLE_NOTIFICATION_TEST=true' }
         $variantSuffix = if ($debugBuild) { '-debug' } else { '' }
         & $flutter build apk --release --no-pub @variantArgs
@@ -87,7 +95,7 @@ if ($Target -in @('all','android')) {
 
 if ($Target -in @('all','windows')) {
     foreach ($debugBuild in $buildVariants) {
-        $variantArgs = @()
+        $variantArgs = @($buildArgs)
         if ($debugBuild) { $variantArgs += '--dart-define=UNITABLE_NOTIFICATION_TEST=true' }
         $variantSuffix = if ($debugBuild) { '-debug' } else { '' }
         & $flutter build windows --release --no-pub @variantArgs
@@ -126,7 +134,7 @@ if ($Target -in @('all','windows')) {
             if (-not (Test-Path -LiteralPath $iscc)) { $iscc = (Get-Command ISCC.exe -ErrorAction Stop).Source }
             $installerArgs = @()
             if ($debugBuild) { $installerArgs += '/DTestBuild=1' }
-            & $iscc "/DAppVersion=$version" "/DBundleDir=$bundle" "/DOutputDir=$dist" @installerArgs (Join-Path $projectRoot 'packaging\windows.iss')
+            & $iscc "/DAppVersion=$packageVersion" "/DDisplayVersion=$version" "/DBundleDir=$bundle" "/DOutputDir=$dist" @installerArgs (Join-Path $projectRoot 'packaging\windows.iss')
             Assert-Exit 'Windows installer build'
         }
     }
