@@ -3,6 +3,7 @@ package net.neomenia.unitable
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import androidx.documentfile.provider.DocumentFile
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -18,6 +19,20 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "unitable/notifications")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "openAppSettings") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                try {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:$packageName")))
+                    result.success(null)
+                } catch (e: Exception) {
+                    result.error("settings", e.message, null)
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "unitable/storage")
             .setMethodCallHandler { call, result ->
                 if (call.method in listOf("pickDocument", "createDocument")) {

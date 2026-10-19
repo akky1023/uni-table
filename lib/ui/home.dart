@@ -35,17 +35,19 @@ class Home extends StatefulWidget {
   final Storage storage;
   final bool enableNativeNotifications;
   final bool? desktop;
+  final NotificationService? notificationService;
   const Home(
       {super.key,
       required this.storage,
       this.enableNativeNotifications = true,
+      this.notificationService,
       this.desktop});
   @override
   State<Home> createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> with WidgetsBindingObserver {
-  final notices = NotificationService();
+  late final notices = widget.notificationService ?? NotificationService();
   late final Future<String> applicationVersion = loadAppVersion();
   int page = 0;
   DateTime week = shiftDay(DateTime.now(), 1 - DateTime.now().weekday);
@@ -88,6 +90,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   final calendarTodayKey = GlobalKey();
   bool get canNotify => widget.enableNativeNotifications && notices.available;
   Future<void> notificationQueue = Future.value();
+  bool notificationRefreshPending = false;
+  String? pendingNotificationCourse;
+  bool notificationTaskOpen = false;
   UnitDatabase? editDraft;
   bool get editingPage => timetableEditing || calendarEditing;
   bool get hideNavigation => editingPage;
@@ -124,6 +129,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     } finally {
       saving = false;
       changed();
+      final pending = pendingNotificationCourse;
+      if (!editingPage && pending != null) {
+        pendingNotificationCourse = null;
+        openTaskFromNotification(pending);
+      }
     }
   }
 
@@ -142,14 +152,48 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         calendarOffset = calendarScroll.offset;
       }
     });
-    if (widget.enableNativeNotifications &&
-        data.setting('notifications', '0') == '1') {
-      refreshNotifications();
+    if (canNotify) {
+      notices.onAddTask = openTaskFromNotification;
+      initializeNotifications();
     }
+  }
+
+  Future<void> initializeNotifications() async {
+    try {
+      await notices.initialize();
+      if (mounted && data.setting('notifications', '0') == '1') {
+        refreshNotifications();
+      }
+    } catch (_) {/* Display status in settings. */}
+  }
+
+  void openTaskFromNotification(String courseId) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (data.find('courses', courseId) == null) {
+        message('通知の講義が見つかりません。');
+        return;
+      }
+      if (editingPage) {
+        pendingNotificationCourse = courseId;
+        message('編集中の変更を保存または破棄すると、課題追加画面を開きます。');
+        return;
+      }
+      if (notificationTaskOpen) return;
+      notificationTaskOpen = true;
+      setState(() => page = 1);
+      try {
+        await editTask(courseId: courseId);
+      } finally {
+        notificationTaskOpen = false;
+      }
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   @override
   void dispose() {
+    notices.onAddTask = null;
     WidgetsBinding.instance.removeObserver(this);
     widget.storage.database.removeListener(changed);
     editDraft?.removeListener(changed);
@@ -181,7 +225,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   void refreshNotifications() {
     if (!widget.enableNativeNotifications) return;
+    if (notificationRefreshPending) return;
+    notificationRefreshPending = true;
     notificationQueue = notificationQueue.then((_) async {
+      notificationRefreshPending = false;
+      if (!mounted) return;
       try {
         await notices.rebuild(data);
       } catch (_) {/* Display status in settings. */}
@@ -2563,15 +2611,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     return '$labelの${weekdays[chosen.date.weekday - 1]}曜日${chosen.slot['position']}限目$subjectに提出';
   }
 
-  Future<void> editTask({DbRow? row, Session? session}) async {
+  Future<void> editTask({DbRow? row, Session? session, String? courseId}) async {
     final initial = (row == null ? session?.start : engine.taskDeadline(row)) ??
         DateTime.now().add(const Duration(days: 7));
     final title = text(row?['title']),
         due = text(dateTimeLabel(initial)),
         destination = text(row?['destination']),
         notes = text(row?['notes']);
-    var course =
-        row?['course_id'] as String? ?? session?.course['id'] as String? ?? '';
+    var course = row?['course_id'] as String? ??
+        session?.course['id'] as String? ?? courseId ?? '';
     DeadlineChoice? chosen =
         session == null ? null : DeadlineChoice.fromSession(session);
     final options = engine.onDay(initial, includeCancelled: false);
@@ -3389,6 +3437,31 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 onChanged: canNotify ? toggleNotifications : null),
             Text(canNotify ? notices.status : 'この版では通知を利用できません。',
                 style: const TextStyle(fontSize: 12)),
+            if (Platform.isAndroid && canNotify)
+              ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('正確な時刻の通知を許可'),
+                  subtitle: const Text('端末の「アラームとリマインダー」を許可すると通知の遅れを軽減できます。'),
+                  onTap: () async {
+                    try {
+                      await notices.requestExactAlarms();
+                      if (mounted) refreshNotifications();
+                    } catch (e) {
+                      message(e.toString());
+                    }
+                  }),
+            if (Platform.isAndroid && canNotify)
+              ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('省電力設定を確認'),
+                  subtitle: const Text('通知が遅れる場合は、アプリ情報からバッテリーの制限を見直してください。'),
+                  onTap: () async {
+                    try {
+                      await notices.openBatterySettings();
+                    } catch (e) {
+                      message(e.toString());
+                    }
+                  }),
             preferenceSwitch(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('教室を通知する'),

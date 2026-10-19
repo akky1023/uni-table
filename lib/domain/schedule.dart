@@ -352,7 +352,8 @@ class ScheduleEngine {
 class PlannedNotice {
   final String key, title, body;
   final DateTime at;
-  PlannedNotice(this.key, this.title, this.body, this.at);
+  final String? courseId;
+  PlannedNotice(this.key, this.title, this.body, this.at, {this.courseId});
 }
 
 List<PlannedNotice> planNotifications(SchoolData data, DateTime now,
@@ -373,7 +374,8 @@ List<PlannedNotice> planNotifications(SchoolData data, DateTime now,
       }
       if (session.course['check_tasks'] == 1 && session.end.isAfter(now)) {
         result.add(PlannedNotice('check:${session.key}', '課題を確認',
-            '${session.course['name']}の課題はありましたか？', session.end));
+            '${session.course['name']}の課題はありましたか？', session.end,
+            courseId: session.course['id'] as String));
       }
     }
   }
