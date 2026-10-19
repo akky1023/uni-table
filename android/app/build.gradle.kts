@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.Base64
 
 plugins {
     id("com.android.application")
@@ -10,6 +11,11 @@ val signingProperties = Properties()
 val signingFile = rootProject.file("key.properties").takeIf { it.exists() }
     ?: rootProject.file("../.tools/signing/android-key.properties")
 if (signingFile.exists()) signingFile.inputStream().use { signingProperties.load(it) }
+
+val notificationTest = providers.gradleProperty("dart-defines").orNull
+    ?.split(",")
+    ?.map { String(Base64.getDecoder().decode(it), Charsets.UTF_8) }
+    ?.contains("UNITABLE_NOTIFICATION_TEST=true") == true
 
 android {
     namespace = "net.neomenia.unitable"
@@ -25,6 +31,9 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "net.neomenia.unitable"
+        if (notificationTest) applicationIdSuffix = ".debug"
+        manifestPlaceholders["appLabel"] =
+            if (notificationTest) "うに時間割（通知テスト）" else "うに時間割"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 26
