@@ -19,6 +19,7 @@ void main() {
   late List<MethodCall> calls;
   late bool exact;
   late bool revokeOnSchedule;
+  late List<Map<String, dynamic>> pending;
   NotificationResponse? launchResponse;
   setUp(() {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
@@ -27,10 +28,13 @@ void main() {
     exact = false;
     revokeOnSchedule = false;
     launchResponse = null;
+    pending = [];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
       calls.add(call);
       switch (call.method) {
+        case 'pendingNotificationRequests':
+          return pending;
         case 'initialize':
         case 'requestNotificationsPermission':
           return true;
@@ -96,7 +100,8 @@ void main() {
       await service.rebuild(futureData());
       final scheduled = calls.where((c) => c.method == 'zonedSchedule').toList();
       expect(scheduled, hasLength(2));
-      expect(calls.map((c) => c.method), contains('cancelAllPendingNotifications'));
+      expect(calls.map((c) => c.method), contains(NotificationService.testingEnabled
+          ? 'pendingNotificationRequests' : 'cancelAllPendingNotifications'));
       expect(calls.map((c) => c.method), isNot(contains('cancelAll')));
       final args = Map<String, dynamic>.from(scheduled.last.arguments as Map);
       final android = args['platformSpecifics'] as Map;
@@ -158,4 +163,54 @@ void main() {
     expect(notices.singleWhere((n) => n.key.startsWith('check:')).courseId, 'c1');
     expect(notices.singleWhere((n) => n.key.startsWith('class:')).courseId, isNull);
   });
+
+  if (NotificationService.testingEnabled) {
+    test('即時テスト通知には選んだ科目の課題追加ボタンが付く', () async {
+      final data = futureData();
+      final service = AndroidNotices();
+      expect(await service.sendTestNotification(data, data.rows('courses').single), isTrue);
+      final args = calls.singleWhere((c) => c.method == 'show').arguments as Map;
+      expect(args['id'], NotificationService.testNotificationId);
+      expect(args['title'], '課題を確認（通知テスト）');
+      expect(args['body'], contains('情報科学'));
+      final destinations = <String>[];
+      service.onAddTask = destinations.add;
+      service.handleResponse(NotificationResponse(
+          notificationResponseType: NotificationResponseType.selectedNotificationAction,
+          actionId: NotificationService.addTaskAction,
+          payload: args['payload'] as String));
+      expect(destinations, ['c1']);
+    });
+
+    test('30秒後のテスト通知を秒単位で予約する', () async {
+      final data = futureData();
+      final before = DateTime.now();
+      await AndroidNotices().sendTestNotification(data, data.rows('courses').single,
+          delay: const Duration(seconds: 30));
+      final args = calls.singleWhere((c) => c.method == 'zonedSchedule').arguments as Map;
+      final at = DateTime.parse(args['scheduledDateTime'] as String);
+      expect(at.difference(before).inSeconds, inInclusiveRange(29, 32));
+      expect(args['id'], NotificationService.testNotificationId);
+    });
+
+    test('予約補充時もテスト通知の予約を保持する', () async {
+      pending = [
+        {'id': 1, 'title': '通常通知', 'body': '', 'payload': ''},
+        {'id': NotificationService.testNotificationId,
+          'title': 'テスト通知', 'body': '', 'payload': ''},
+      ];
+      await AndroidNotices().rebuild(futureData());
+      final cancelled = calls.where((c) => c.method == 'cancel')
+          .map((c) => (c.arguments as Map)['id']).toList();
+      expect(cancelled, [1]);
+      expect(calls.map((c) => c.method), isNot(contains('cancelAllPendingNotifications')));
+    });
+  } else {
+    test('通常ビルドではテスト通知を送信できない', () async {
+      final data = futureData();
+      await expectLater(AndroidNotices().sendTestNotification(
+          data, data.rows('courses').single), throwsStateError);
+      expect(calls, isEmpty);
+    });
+  }
 }

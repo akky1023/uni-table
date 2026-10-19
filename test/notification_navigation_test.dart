@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:unitable/data/database.dart';
+import 'package:unitable/domain/schedule.dart';
 import 'package:unitable/services/notifications.dart';
 import 'package:unitable/ui/accessibility.dart';
 import 'package:unitable/ui/home.dart';
@@ -13,6 +14,19 @@ import 'fixtures.dart';
 class LaunchNotices extends NotificationService {
   LaunchNotices(this.coldStart);
   final bool coldStart;
+  String? testedCourse;
+  Duration? testedDelay;
+  @override
+  Future<bool> requestPermission() async => true;
+  @override
+  Future<void> rebuild(SchoolData data) async {}
+  @override
+  Future<bool> sendTestNotification(SchoolData data, DbRow course,
+      {Duration delay = Duration.zero}) async {
+    testedCourse = course['id'] as String;
+    testedDelay = delay;
+    return true;
+  }
   @override
   bool get available => true;
   void pressAddTask(String courseId) => handleResponse(NotificationResponse(
@@ -105,6 +119,29 @@ void main() {
     final courseField = tester.widget<DropdownButtonFormField<String>>(
         find.byType(DropdownButtonFormField<String>));
     expect(courseField.initialValue, 'c1');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('通知テストボタンはテストビルドだけに表示する', (tester) async {
+    final notices = LaunchNotices(false);
+    await tester.pumpWidget(app(notices));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, '設定'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('通知'));
+    await tester.pumpAndSettle();
+    if (NotificationService.testingEnabled) {
+      expect(find.text('通知テスト（テストAPK限定）'), findsOneWidget);
+      await tester.ensureVisible(find.text('30秒後に通知をテスト'));
+      await tester.tap(find.text('30秒後に通知をテスト'));
+      await tester.pumpAndSettle();
+      expect(notices.testedCourse, 'c1');
+      expect(notices.testedDelay, const Duration(seconds: 30));
+    } else {
+      expect(find.text('通知テスト（テストAPK限定）'), findsNothing);
+    }
     await tester.pumpWidget(const SizedBox());
   });
 }

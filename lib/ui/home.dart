@@ -93,6 +93,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   bool notificationRefreshPending = false;
   String? pendingNotificationCourse;
   bool notificationTaskOpen = false;
+  String? notificationTestCourse;
+  bool sendingTestNotification = false;
   UnitDatabase? editDraft;
   bool get editingPage => timetableEditing || calendarEditing;
   bool get hideNavigation => editingPage;
@@ -165,6 +167,36 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         refreshNotifications();
       }
     } catch (_) {/* Display status in settings. */}
+  }
+
+  Future<void> testNotification(Duration delay) async {
+    if (sendingTestNotification) return;
+    final course = data.find('courses', notificationTestCourse) ??
+        data.rows('courses').firstOrNull;
+    if (course == null) {
+      message('通知テストには講義を1件以上登録してください。');
+      return;
+    }
+    setState(() => sendingTestNotification = true);
+    try {
+      if (data.setting('notifications', '0') != '1') {
+        if (!await notices.requestPermission()) {
+          message('通知の許可が必要です。');
+          return;
+        }
+        await setting('notifications', '1');
+      }
+      await notificationQueue;
+      if (!mounted) return;
+      final sent = await notices.sendTestNotification(data, course, delay: delay);
+      message(!sent ? '通知の許可が必要です。' : delay == Duration.zero
+          ? 'テスト通知を送信しました。'
+          : '${delay.inSeconds}秒後のテスト通知を予約しました。画面を閉じて確認できます。');
+    } catch (e) {
+      message('通知テストに失敗しました: $e');
+    } finally {
+      if (mounted) setState(() => sendingTestNotification = false);
+    }
   }
 
   void openTaskFromNotification(String courseId) {
@@ -3437,6 +3469,30 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 onChanged: canNotify ? toggleNotifications : null),
             Text(canNotify ? notices.status : 'この版では通知を利用できません。',
                 style: const TextStyle(fontSize: 12)),
+            if (NotificationService.testingEnabled) ...[
+              const SizedBox(height: 16),
+              const Text('通知テスト（テストAPK限定）'),
+              const Text('課題確認通知と「課題を追加」を確認できます。予約は最新の1件です。'),
+              if (data.rows('courses').isNotEmpty)
+                choice('テストする科目',
+                    data.find('courses', notificationTestCourse)?['id'] as String? ??
+                        data.rows('courses').first['id'] as String,
+                    {for (final c in data.rows('courses'))
+                      c['id'] as String: c['name'] as String},
+                    (v) => setState(() => notificationTestCourse = v)),
+              for (final option in const <(String, Duration)>[
+                ('今すぐ通知をテスト', Duration.zero),
+                ('30秒後に通知をテスト', Duration(seconds: 30)),
+                ('5分後に通知をテスト', Duration(minutes: 5)),
+              ])
+                OutlinedButton.icon(
+                    onPressed: canNotify && !sendingTestNotification &&
+                            data.rows('courses').isNotEmpty
+                        ? () => testNotification(option.$2) : null,
+                    icon: const Icon(Icons.notifications_active_outlined),
+                    label: Text(option.$1)),
+              const SizedBox(height: 16),
+            ],
             if (Platform.isAndroid && canNotify)
               ListTile(
                   contentPadding: EdgeInsets.zero,

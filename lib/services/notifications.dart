@@ -9,6 +9,8 @@ import 'package:timezone/timezone.dart' as tz;
 import '../domain/schedule.dart';
 
 class NotificationService {
+  static const testingEnabled = bool.fromEnvironment('UNITABLE_NOTIFICATION_TEST');
+  static const testNotificationId = 1000001;
   static const addTaskAction = 'add_task';
   void Function(String courseId)? onAddTask;
   bool get isAndroid => Platform.isAndroid;
@@ -94,6 +96,59 @@ class NotificationService {
     }
   }
 
+  NotificationDetails detailsFor(PlannedNotice notice) => NotificationDetails(
+      android: AndroidNotificationDetails(
+          'unitable_schedule', '講義・課題',
+          channelDescription: '講義の教室と課題の期限',
+          importance: Importance.high,
+          priority: Priority.high,
+          actions: notice.courseId == null ? null : const [
+            AndroidNotificationAction(addTaskAction, '課題を追加',
+                showsUserInterface: true),
+          ]),
+      windows: WindowsNotificationDetails(
+          actions: notice.courseId == null ? const [] : [
+            WindowsAction(content: '課題を追加',
+                arguments: taskPayload(notice.courseId!)),
+          ]));
+
+  Future<bool> sendTestNotification(SchoolData data, DbRow course,
+      {Duration delay = Duration.zero}) async {
+    if (!testingEnabled) throw StateError('通知テストはテストAPKで利用できます。');
+    if (!await requestPermission()) return false;
+    final zone = tz.getLocation(data.setting('timezone', 'Asia/Tokyo'));
+    final at = tz.TZDateTime.now(zone).add(delay);
+    final notice = PlannedNotice('test', '課題を確認（通知テスト）',
+        '${course['name']}の課題はありましたか？', at,
+        courseId: course['id'] as String);
+    final details = detailsFor(notice);
+    final payload = taskPayload(notice.courseId!);
+    await plugin.cancel(testNotificationId);
+    if (delay == Duration.zero) {
+      await plugin.show(testNotificationId, notice.title, notice.body,
+          details, payload: payload);
+    } else {
+      final android = plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      var exact = isAndroid &&
+          await android?.canScheduleExactNotifications() == true;
+      Future<void> schedule() => plugin.zonedSchedule(testNotificationId,
+          notice.title, notice.body, at, details,
+          androidScheduleMode: exact
+              ? AndroidScheduleMode.exactAllowWhileIdle
+              : AndroidScheduleMode.inexactAllowWhileIdle,
+          payload: payload);
+      try {
+        await schedule();
+      } on PlatformException catch (e) {
+        if (!exact || e.code != 'exact_alarms_not_permitted') rethrow;
+        exact = false;
+        await schedule();
+      }
+    }
+    return true;
+  }
+
   void requireWindowsPackage() {
     if (Platform.isWindows) {
       final length = calloc<Uint32>();
@@ -158,7 +213,14 @@ class NotificationService {
           : false;
       // Keep delivered notifications (and their action buttons) on Android.
       if (isAndroid) {
-        await plugin.cancelAllPendingNotifications();
+        if (testingEnabled) {
+          // App resume refills the timetable without cancelling a test alarm.
+          for (final pending in await plugin.pendingNotificationRequests()) {
+            if (pending.id != testNotificationId) await plugin.cancel(pending.id);
+          }
+        } else {
+          await plugin.cancelAllPendingNotifications();
+        }
       } else {
         await plugin.cancelAll();
       }
@@ -183,29 +245,7 @@ class NotificationService {
               notice.title,
               notice.body,
               at,
-              NotificationDetails(
-                android: AndroidNotificationDetails(
-                  'unitable_schedule',
-                  '講義・課題',
-                  channelDescription: '講義の教室と課題の期限',
-                  importance: Importance.high,
-                  priority: Priority.high,
-                  actions: notice.courseId == null
-                      ? null
-                      : const [
-                          AndroidNotificationAction(
-                            addTaskAction,
-                            '課題を追加',
-                            showsUserInterface: true,
-                          ),
-                        ],
-                ),
-                windows: WindowsNotificationDetails(
-                  actions: notice.courseId == null
-                      ? const []
-                      : [WindowsAction(content: '課題を追加', arguments: payload)],
-                ),
-              ),
+              detailsFor(notice),
               androidScheduleMode: exact
                   ? AndroidScheduleMode.exactAllowWhileIdle
                   : AndroidScheduleMode.inexactAllowWhileIdle,
