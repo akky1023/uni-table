@@ -22,6 +22,24 @@ async function main() {
   const transform = svg.match(/translate\(([\d.]+) ([\d.]+)\) scale\(([\d.]+)\)/);
   const render = (size) => sharp(Buffer.from(svg), { density: 72 * size / 512 }).resize(size, size);
 
+  // Notification small icons use only the artwork's alpha mask, with no background.
+  const notificationSvg = svg.replace(/\s*<rect[^>]*\/>/, '').replace('fill="#000000"', 'fill="#FFFFFF"');
+  await write('assets/icons/notification_icon.svg', notificationSvg);
+  await write('assets/icons/notification_icon_512.png', await sharp(Buffer.from(notificationSvg)).png().toBuffer());
+  const notificationScale = Number(transform[3]) * 24 / 512;
+  const notificationX = Number(transform[1]) * 24 / 512;
+  const notificationY = Number(transform[2]) * 24 / 512;
+  await write(`${res}/drawable/ic_notification.xml`, `<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <group android:scaleX="${notificationScale}" android:scaleY="${notificationScale}"
+        android:translateX="${notificationX}" android:translateY="${notificationY}">
+        <path android:fillColor="#FFFFFFFF" android:pathData="${artwork}" />
+    </group>
+</vector>
+`);
+
   for (const size of sizes) {
     await write(`assets/icons/webp/app_icon_${size}.webp`, await render(size).webp({ lossless: true }).toBuffer());
   }
