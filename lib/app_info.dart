@@ -8,6 +8,10 @@ const appAuthorGitHub = 'https://github.com/akky1023';
 const appRepository = 'https://github.com/akky1023/uni-table';
 
 // バージョンをここへ直書きしないでください。
-// Release Pleaseがpubspec.yamlを更新し、ビルドされたアプリの情報から取得します。
-Future<String> loadAppVersion() async =>
-    (await PackageInfo.fromPlatform()).version;
+// Release Pleaseが更新するpubspec.yamlのバージョンをFlutterが埋め込みます。
+// 埋め込み値のない実行環境では、端末側のアプリ情報を利用します。
+Future<String> loadAppVersion() async {
+  const version = String.fromEnvironment('FLUTTER_BUILD_NAME');
+  if (version.isNotEmpty) return version;
+  return (await PackageInfo.fromPlatform()).version;
+}

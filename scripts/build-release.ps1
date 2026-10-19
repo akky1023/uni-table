@@ -98,6 +98,7 @@ if ($Target -in @('all','windows')) {
     $check = Start-Process -FilePath (Join-Path $bundle 'UniTable.exe') -WorkingDirectory $bundle -WindowStyle Hidden -ArgumentList @('--verify-installation', "`"--report=$report`"") -PassThru
     if (-not $check.WaitForExit(30000)) { Stop-Process -Id $check.Id; throw 'Windows executable startup check timed out.' }
     if ($check.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $report) -or -not ((Get-Content -LiteralPath $report -Raw | ConvertFrom-Json).ok)) { throw 'Windows executable startup check failed.' }
+    if ((Get-Content -LiteralPath $report -Raw | ConvertFrom-Json).appVersion -cne $version) { throw 'Windows in-app version does not match the release version.' }
     [IO.File]::WriteAllText((Join-Path $bundle 'README.txt'), "UniTable $version`r`nStart UniTable.exe. Keep the data folder and DLL files beside the executable.`r`nLocal notifications on Windows require the MSIX edition.`r`n", [Text.UTF8Encoding]::new($false))
     $zip = Join-Path $dist "UniTable-$version-windows-x64.zip"
     Compress-Archive -LiteralPath $bundle -DestinationPath $zip -Force

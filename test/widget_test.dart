@@ -969,6 +969,12 @@ void main() {
   });
   testWidgets('時間割の再選択は今週へ戻り曜日は期限の課題だけを表示する', (tester) async {
     populate();
+    final today = dateOnly(DateTime.now());
+    final friday = shiftDay(today, DateTime.friday - today.weekday);
+    storage.database.transaction(() => storage.database.put('tasks', {
+          ...storage.database.data.rows('tasks').single,
+          'due_at': '${dayKey(friday)}T17:00:00',
+        }));
     await size(tester, const Size(390, 844));
     await tester.pumpWidget(app(desktop: false));
     await tester.pumpAndSettle();
@@ -980,7 +986,8 @@ void main() {
             .widget<TextButton>(find.widgetWithText(TextButton, '今週'))
             .onPressed,
         isNull);
-    final heading = find.widgetWithText(TextButton, '金\n10/16');
+    final heading = find.widgetWithText(
+        TextButton, '金\n${friday.month}/${friday.day}');
     await tester.tap(heading);
     await tester.pumpAndSettle();
     expect(find.text('第3回 演習レポート'), findsOneWidget);
@@ -1455,13 +1462,19 @@ void main() {
   for (final width in [320, 390]) {
     testWidgets('赤ドットは${width}pxの端の曜日でも切れず曜日を動かさない', (tester) async {
       populate();
-      storage.database.transaction(() => storage.database.put('tasks',
-          {'id': 'edge', 'title': '土曜提出', 'due_at': '2026-10-17T17:00:00'}));
+      final today = dateOnly(DateTime.now());
+      final saturday = shiftDay(today, DateTime.saturday - today.weekday);
+      storage.database.transaction(() => storage.database.put('tasks', {
+            'id': 'edge',
+            'title': '土曜提出',
+            'due_at': '${dayKey(saturday)}T17:00:00',
+          }));
       await size(tester, Size(width.toDouble(), 844));
       await tester.pumpWidget(app(desktop: false));
       await tester.pumpAndSettle();
-      final heading = find.widgetWithText(TextButton, '土\n10/17');
-      final text = find.text('土\n10/17');
+      final label = '土\n${saturday.month}/${saturday.day}';
+      final heading = find.widgetWithText(TextButton, label);
+      final text = find.text(label);
       final before = tester.getCenter(text);
       final dot =
           find.descendant(of: heading, matching: find.byIcon(Icons.circle));
