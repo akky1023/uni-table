@@ -32,6 +32,7 @@ void main(List<String> arguments) async {
           'sqlite': true,
           'supportDirectory': support.path,
           'appVersion': version,
+          'debugFeatures': const bool.fromEnvironment('UNITABLE_NOTIFICATION_TEST'),
         }));
       }
       check.dispose();

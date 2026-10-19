@@ -120,7 +120,12 @@ jobs:
           & $java.FullName scripts/ApplyAndroidSigningCertificate.java .tools/signing/unitable-release.jks $env:ANDROID_KEY_ALIAS android/release-signing-certificate.pem
           if ($LASTEXITCODE -ne 0) { throw 'Android signing certificate update failed.' }
       - name: Build and verify release packages
-        run: '& scripts/build-release.ps1 -Target all -SkipRestore'
+        run: |
+          # Older fixed tags predate debug builds; preserve their original builder.
+          $builder = Get-Command ./scripts/build-release.ps1
+          $variantArgs = @{}
+          if ($builder.Parameters.ContainsKey('IncludeDebugBuilds')) { $variantArgs.IncludeDebugBuilds = $true }
+          & scripts/build-release.ps1 -Target all -SkipRestore @variantArgs
       - name: Generate trusted workflow provenance
         id: provenance
         uses: actions/attest-build-provenance/predicate@864457a58d4733d7f1574bd8821fa24e02cf7538 # predicate v2.0.0

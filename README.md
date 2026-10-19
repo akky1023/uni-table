@@ -62,10 +62,14 @@ flutter test
 
 # 両プラットフォームをビルド
 .\scripts\build-release.ps1 -Target all
+# 通常版とデバッグ用機能付きのAPK・Windowsインストーラー・ZIPをビルド
+.\scripts\build-release.ps1 -Target all -IncludeDebugBuilds
 # 個別指定: -Target windows / -Target android
 ```
 
 ビルドスクリプトは`.tools/flutter`のSDKを優先し、なければPATH上のFlutterを使用します。成果物とSHA-256チェックサムは`dist/`に出力します。
+
+GitHubのリリース作成・下書きリリース復旧では、通常版とデバッグ版を両方ビルドして配布します。デバッグ版のファイル名は `UniTable-<version>-android-debug.apk`、`UniTable-<version>-windows-x64-debug-setup.exe`、`UniTable-<version>-windows-x64-debug.zip` です。通常版と同じ署名・チェックサム・来歴証明の対象になります。AndroidはアプリID末尾の `.debug`、Windowsはインストール先・ショートカット・端末設定の保存先で通常版と分離します。
 
 確認用の未署名MSIXは次のコマンドで作成できます。Windows SDKのMakeAppxを使用し、証明書のインストールは行いません。配布・通常のインストール用には署名の準備が必要です。
 

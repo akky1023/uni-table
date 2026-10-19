@@ -133,7 +133,7 @@ jobs:
           & $java.FullName scripts/ApplyAndroidSigningCertificate.java .tools/signing/unitable-release.jks $env:ANDROID_KEY_ALIAS android/release-signing-certificate.pem
           if ($LASTEXITCODE -ne 0) { throw 'Android signing certificate update failed.' }
       - name: Build and verify release packages
-        run: '& scripts/build-release.ps1 -Target all -SkipRestore'
+        run: '& scripts/build-release.ps1 -Target all -SkipRestore -IncludeDebugBuilds'
       - name: Attest build provenance
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
