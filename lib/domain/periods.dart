@@ -1,3 +1,4 @@
+import '../l10n/strings.dart';
 import 'schedule.dart';
 
 List<DbRow> timetablePeriods(SchoolData data) => data
@@ -17,7 +18,7 @@ String periodLabel(SchoolData data, DbRow period) {
   if ((period['name'] as String? ?? '').isNotEmpty) {
     return period['name'] as String;
   }
-  if (period['kind'] == 'holiday') return '休業期間';
+  if (period['kind'] == 'holiday') return strings.closurePeriod;
   final start = DateTime.parse(period['start_date'] as String);
   final month = int.tryParse(data.setting('year_start', '4')) ?? 4;
   final year = start.year - (start.month < month ? 1 : 0);
@@ -33,10 +34,12 @@ String periodLabel(SchoolData data, DbRow period) {
         .compareTo('${b['start_date']}:${b['id']}'));
   final number = peers.indexWhere((e) => e['id'] == period['id']) + 1;
   final label = switch (peers.length) {
-    1 => period['kind'] == 'exam' ? '' : '講義期間',
-    2 => number == 1 ? '前期' : '後期',
-    4 => '第$numberクオータ',
-    _ => '$number学期',
+    1 => period['kind'] == 'exam' ? '' : strings.teachingPeriod,
+    2 => number == 1 ? strings.firstSemester : strings.secondSemester,
+    4 => strings.quarterNumber(number),
+    _ => strings.termNumber(number),
   };
-  return '$label${period['kind'] == 'exam' ? '試験期間' : ''}';
+  return period['kind'] == 'exam'
+      ? (label.isEmpty ? strings.examPeriod : strings.namedExamPeriod(label))
+      : label;
 }

@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:sqlite3/sqlite3.dart';
 import '../domain/schedule.dart';
+import '../l10n/strings.dart';
 
 const applicationId = 0x554E4954;
 const tableNames = [
@@ -42,14 +43,14 @@ class UnitDatabase extends ChangeNotifier {
       if (exists) {
         if (db.select('PRAGMA application_id').first.values.first !=
             applicationId) {
-          throw const FormatException('うに時間割のデータベースではありません。元のファイルは変更していません。');
+          throw FormatException(strings.invalidDatabase);
         }
         if (![1, 2, 3, 4, 5, 6]
             .contains(db.select('PRAGMA user_version').first.values.first)) {
-          throw const FormatException('対応していないデータベースのバージョンです。');
+          throw FormatException(strings.unsupportedDatabaseVersion);
         }
         if (db.select('PRAGMA quick_check').first.values.first != 'ok') {
-          throw const FormatException('データベースの整合性チェックに失敗しました。');
+          throw FormatException(strings.databaseIntegrityFailed);
         }
       }
       db.execute('PRAGMA foreign_keys = ON');
@@ -252,12 +253,12 @@ class UnitDatabase extends ChangeNotifier {
   }
 
   void mergePeriods(List<String> ids, String name) {
-    if (ids.length < 2) throw const FormatException('2つ以上の期間を選んでください');
+    if (ids.length < 2) throw FormatException(strings.selectMultiplePeriods);
     final periods = ids.map((id) => data.find('events', id)!).toList()
       ..sort((a, b) =>
           (a['start_date'] as String).compareTo(b['start_date'] as String));
     if (periods.any((p) => p['kind'] != periods.first['kind'])) {
-      throw const FormatException('同じ種類の期間を選んでください');
+      throw FormatException(strings.selectSamePeriodKind);
     }
     final target = periods.first['id'] as String;
     final ranges = <DbRow>[];
@@ -376,7 +377,7 @@ class UnitDatabase extends ChangeNotifier {
 
   void snapshot(String target) {
     if (File(target).existsSync()) {
-      throw const FileSystemException('保存先にファイルが存在します。');
+      throw FileSystemException(strings.fileAlreadyExists);
     }
     db.execute('VACUUM INTO ?', [target]);
   }
@@ -419,7 +420,7 @@ class Storage extends ChangeNotifier {
   bool userSelected = false;
   bool get hasDatabase => _database != null;
   UnitDatabase get database =>
-      _database ?? (throw StateError('先に.unitableファイルを指定してください'));
+      _database ?? (throw StateError(strings.selectDatabaseFirst));
   set database(UnitDatabase value) {
     for (final entry in value.appSettings.entries) {
       localSettings.putIfAbsent(entry.key, () => entry.value);
@@ -439,6 +440,13 @@ class Storage extends ChangeNotifier {
     value.persistSettings = (_) => savePreferences();
     _database = value;
     value.reload();
+    notifyListeners();
+  }
+
+  void setLanguage(String language) {
+    if (!['system', 'ja', 'en'].contains(language)) return;
+    localSettings['language'] = language;
+    savePreferences();
     notifyListeners();
   }
 
@@ -489,14 +497,19 @@ class Storage extends ChangeNotifier {
       localSettings.addAll((state['settings'] as Map? ?? {})
           .map((k, v) => MapEntry(k.toString(), v.toString())));
     }
+    setAppLocale(
+      resolveAppLocale(
+        localSettings['language'] ?? 'system',
+        PlatformDispatcher.instance.locale,
+      ),
+    );
     if (!userSelected) return;
     final local = p.join(support.path, 'university.unitable');
     if (document != null) {
       if (!await dirtyMarker.exists()) {
         final target = p.join(support.path, 'working-${newId()}.unitable');
         try {
-          await channel
-              .invokeMethod('readDocument', {'uri': document, 'path': target});
+          await invokeStorage('readDocument', {'uri': document, 'path': target});
           final next = openWorkingDatabase(target);
           database = next;
           externalPath = target;
@@ -504,7 +517,7 @@ class Storage extends ChangeNotifier {
           if (externalPath == null || !File(externalPath!).existsSync()) {
             rethrow;
           }
-          pendingSyncError = '指定ファイルを読み込めないため、作業用コピーを開きました: $e';
+          pendingSyncError = strings.workingCopyFile(e);
           await beforeWrite();
         }
       }
@@ -514,19 +527,18 @@ class Storage extends ChangeNotifier {
     }
     if (Platform.isAndroid && tree != null) {
       if (await dirtyMarker.exists()) {
-        pendingSyncError = '指定フォルダーに未保存の変更を、端末内の作業用DBから復元しました。再試行してください。';
+        pendingSyncError = strings.recoveredChanges;
       } else {
         final incoming = p.join(support.path, 'working-${newId()}.unitable');
         try {
-          await channel
-              .invokeMethod('readDatabase', {'tree': tree, 'path': incoming});
+          await invokeStorage('readDatabase', {'tree': tree, 'path': incoming});
           final checked = openWorkingDatabase(incoming);
           checked.dispose();
           externalPath = incoming;
           await remember();
         } catch (e) {
           if (!File(externalPath ?? local).existsSync()) rethrow;
-          pendingSyncError = '指定フォルダーを読み込めないため、端末内の作業用コピーを開きました: $e';
+          pendingSyncError = strings.workingCopyFolder(e);
           await beforeWrite();
         }
       }
@@ -534,7 +546,7 @@ class Storage extends ChangeNotifier {
     final selectedPath = externalPath ?? local;
     if (!File(selectedPath).existsSync() ||
         File(selectedPath).lengthSync() == 0) {
-      throw const FileSystemException('指定した.unitableが見つかりません。ファイルを選び直してください。');
+      throw FileSystemException(strings.databaseNotFound);
     }
     database = openWorkingDatabase(selectedPath);
   }
@@ -544,19 +556,16 @@ class Storage extends ChangeNotifier {
 
   Future<bool> selectDatabase({bool create = false}) async {
     if (Platform.isAndroid) {
-      final uri = await channel
-          .invokeMethod<String>(create ? 'createDocument' : 'pickDocument');
+      final uri = await invokeStorage<String>(create ? 'createDocument' : 'pickDocument');
       if (uri == null) return false;
       final candidate = p.join(support.path, 'working-${newId()}.unitable');
       if (!create) {
-        await channel
-            .invokeMethod('readDocument', {'uri': uri, 'path': candidate});
+        await invokeStorage('readDocument', {'uri': uri, 'path': candidate});
       }
       final next = openWorkingDatabase(candidate);
       if (create) {
         try {
-          await channel
-              .invokeMethod('writeDocument', {'uri': uri, 'path': candidate});
+          await invokeStorage('writeDocument', {'uri': uri, 'path': candidate});
         } catch (_) {
           next.dispose();
           rethrow;
@@ -568,27 +577,27 @@ class Storage extends ChangeNotifier {
       if (create) {
         path = (await getSaveLocation(
                 suggestedName: 'university.unitable',
-                acceptedTypeGroups: const [
-              XTypeGroup(label: 'うに時間割', extensions: ['unitable'])
+                acceptedTypeGroups: [
+              XTypeGroup(label: strings.appName, extensions: ['unitable'])
             ]))
             ?.path;
         if (path != null && !path.toLowerCase().endsWith('.unitable')) {
           path = '$path.unitable';
         }
         if (path != null && File(path).existsSync()) {
-          throw const FileSystemException('既存のファイルは上書きしません');
+          throw FileSystemException(strings.noOverwrite);
         }
       } else {
-        path = (await openFile(acceptedTypeGroups: const [
-          XTypeGroup(label: 'うに時間割', extensions: ['unitable'])
+        path = (await openFile(acceptedTypeGroups: [
+          XTypeGroup(label: strings.appName, extensions: ['unitable'])
         ]))
             ?.path;
         if (path != null && !path.toLowerCase().endsWith('.unitable')) {
-          throw const FormatException('.unitableファイルを選んでください');
+          throw FormatException(strings.selectUnitableFile);
         }
         if (path != null &&
             (!File(path).existsSync() || File(path).lengthSync() == 0)) {
-          throw const FormatException('空のファイルは開けません');
+          throw FormatException(strings.emptyFile);
         }
       }
       if (path == null) return false;
@@ -630,10 +639,9 @@ class Storage extends ChangeNotifier {
     }
   }
 
-  Future<String?> chooseFolder() =>
-      channel.invokeMethod<String>('pickDirectory');
+  Future<String?> chooseFolder() => invokeStorage<String>('pickDirectory');
   Future<bool> treeHasDatabase(String uri) async =>
-      await channel.invokeMethod<bool>('hasDatabase', {'tree': uri}) ?? false;
+      await invokeStorage<bool>('hasDatabase', {'tree': uri}) ?? false;
   Future<void> useFolder(String folder, {required bool openExisting}) async {
     final old = database;
     userSelected = true;
@@ -641,12 +649,10 @@ class Storage extends ChangeNotifier {
     if (Platform.isAndroid) {
       final candidate = p.join(support.path, 'candidate-${newId()}.unitable');
       if (openExisting) {
-        await channel
-            .invokeMethod('readDatabase', {'tree': folder, 'path': candidate});
+        await invokeStorage('readDatabase', {'tree': folder, 'path': candidate});
       } else {
         old.snapshot(candidate);
-        await channel
-            .invokeMethod('writeDatabase', {'tree': folder, 'path': candidate});
+        await invokeStorage('writeDatabase', {'tree': folder, 'path': candidate});
       }
       final next = openWorkingDatabase(candidate); // Validate before switching.
       final previousTree = tree;
@@ -688,16 +694,50 @@ class Storage extends ChangeNotifier {
     final snapshot = p.join(support.path, 'snapshot-${newId()}.unitable');
     try {
       database.snapshot(snapshot);
-      await channel.invokeMethod(
+      await invokeStorage(
           document != null ? 'writeDocument' : 'writeDatabase',
           {'tree': tree, 'uri': document, 'path': snapshot});
       pendingSyncError = null;
       if (await dirtyMarker.exists()) await dirtyMarker.delete();
     } catch (e) {
-      pendingSyncError = '端末内には保存済みですが、指定フォルダーへの保存に失敗しました: $e';
+      pendingSyncError = strings.externalSaveFailed(e);
       rethrow;
     } finally {
       if (File(snapshot).existsSync()) await File(snapshot).delete();
     }
+  }
+}
+
+// Native storage returns stable codes; translate at the Dart boundary so the
+// app's language override also applies to Android file errors.
+Future<T?> invokeStorage<T>(
+  String method, [
+  Map<String, Object?>? arguments,
+]) async {
+  try {
+    return await Storage.channel.invokeMethod<T>(method, arguments);
+  } on PlatformException catch (error) {
+    final message = switch (error.code) {
+      'storagePickerBusy' => strings.storagePickerBusy,
+      'storageEmptyFile' => strings.storageEmptyFile,
+      'storageVerificationFailed' => strings.storageVerificationFailed,
+      'storageFolderPermission' => strings.storageFolderPermission,
+      'storageRecoveryFailed' => strings.storageRecoveryFailed,
+      'storageMissingDatabase' => strings.storageMissingDatabase,
+      'storageEmptyDatabase' => strings.storageEmptyDatabase,
+      'storageNoData' => strings.storageNoData,
+      'storageCleanupFailed' => strings.storageCleanupFailed,
+      'storageRenameUnsupported' => strings.storageRenameUnsupported,
+      'storageSaveFailed' => strings.storageSaveFailed,
+      'storageSelectFile' => strings.storageSelectFile,
+      'storageFilePermission' => strings.storageFilePermission,
+      _ => null,
+    };
+    if (message == null) rethrow;
+    throw PlatformException(
+      code: error.code,
+      message: message,
+      details: error.details,
+    );
   }
 }

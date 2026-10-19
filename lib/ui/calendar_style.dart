@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../domain/schedule.dart';
-import 'status_marks.dart';
+import '../l10n/strings.dart';
 import 'app_palette.dart';
+import 'status_marks.dart';
 
 const teachingPalette = [
   0xffd4ead7,
@@ -27,17 +28,17 @@ const examPalette = [
   0xffdec9f0
 ];
 
-const calendarRuleLabels = {
-  'past': '過去の日付',
-  'exam_day': '試験がある日',
-  'replacement_active': '代替日・講義あり',
-  'active': '講義がある日',
-  'national': '祝日',
-  'closure_period': '休業期間',
-  'holiday': '休日の定義に当てはまる日',
-  'exam_period': '試験期間',
-  'replacement': '代替日',
-  'teaching_period': '講義期間',
+Map<String, String> get calendarRuleLabels => {
+  'past': strings.pastDates,
+  'exam_day': strings.examDay,
+  'replacement_active': strings.replacementActive,
+  'active': strings.activeDay,
+  'national': strings.nationalHoliday,
+  'closure_period': strings.closurePeriod,
+  'holiday': strings.definedHoliday,
+  'exam_period': strings.examPeriod,
+  'replacement': strings.replacementDay,
+  'teaching_period': strings.teachingPeriod,
 };
 const defaultCalendarColors = {
   'past': 0xffeeeeee,
@@ -123,11 +124,13 @@ List<Widget> calendarMarks(SchoolData data, DateTime date,
               filled: e['kind'] == 'teaching',
               color: ink,
               label:
-                  '${e['kind'] == 'exam' ? '試験期間' : '講義期間'} ${eventIndex(data, e) + 1}'),
+                '${e['kind'] == 'exam' ? strings.examPeriod : strings.teachingPeriod} ${eventIndex(data, e) + 1}',
+          ),
       if (events.any((e) => e['kind'] == 'holiday') || engine.isClosed(date))
-        StatusMark(shape: 9, color: ink, label: '休業日'),
+        StatusMark(shape: 9, color: ink, label: strings.closure),
       if (replacement)
-        StatusMark(shape: 6, filled: false, color: ink, label: '代替日')
+        StatusMark(shape: 6, filled: false, color: ink, label: strings.replacementDay,
+        )
     ];
   }
   return [
@@ -137,18 +140,20 @@ List<Widget> calendarMarks(SchoolData data, DateTime date,
             e['kind'] == 'exam' &&
             e['start_date'] == e['end_date'] &&
             engine.contains(e, date)))
-      StatusMark(filled: false, color: ink, label: '試験がある日')
+      StatusMark(filled: false, color: ink, label: strings.examDay)
     else if (replacement)
       StatusMark(
           shape: 6,
           filled: false,
           centerDot: sessions.isNotEmpty,
           color: ink,
-          label: sessions.isNotEmpty ? '代替日・講義あり' : '代替日')
+          label: sessions.isNotEmpty ? strings.replacementActive
+            : strings.replacementDay,
+      )
     else if (sessions.isNotEmpty)
-      StatusMark(color: ink, label: '講義がある日')
+      StatusMark(color: ink, label: strings.activeDay)
     else if (engine.isClosed(date) || engine.isHoliday(date))
-      StatusMark(shape: 9, color: ink, label: '休業日')
+      StatusMark(shape: 9, color: ink, label: strings.closure)
   ];
 }
 

@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'data/database.dart';
 import 'app_info.dart';
-import 'ui/storage_gate.dart';
+import 'data/database.dart';
+import 'l10n/generated/app_localizations.dart';
+import 'l10n/strings.dart';
 import 'ui/accessibility.dart';
+import 'ui/storage_gate.dart';
 
 void main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +51,12 @@ void main(List<String> arguments) async {
       exit(1);
     }
   }
+  setAppLocale(
+    resolveAppLocale(
+      'system',
+      WidgetsBinding.instance.platformDispatcher.locale,
+    ),
+  );
   final storage = Storage();
   Object? error;
   try {
@@ -60,21 +67,66 @@ void main(List<String> arguments) async {
   runApp(UniTableApp(storage: storage, startupError: error));
 }
 
-class UniTableApp extends StatelessWidget {
+class UniTableApp extends StatefulWidget {
   final Storage storage;
   final Object? startupError;
   const UniTableApp({super.key, required this.storage, this.startupError});
   @override
+  State<UniTableApp> createState() => _UniTableAppState();
+}
+
+class _UniTableAppState extends State<UniTableApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    widget.storage.addListener(changed);
+    updateLanguage();
+  }
+
+  void updateLanguage() => setAppLocale(
+    resolveAppLocale(
+      widget.storage.localSettings['language'] ?? 'system',
+      WidgetsBinding.instance.platformDispatcher.locale,
+    ),
+  );
+
+  void changed() {
+    updateLanguage();
+    setState(() {});
+  }
+
+  @override
+  void didChangeLocales(List<Locale>? locales) => changed();
+
+  @override
+  void didUpdateWidget(UniTableApp oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.storage != widget.storage) {
+      oldWidget.storage.removeListener(changed);
+      widget.storage.addListener(changed);
+      updateLanguage();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.storage.removeListener(changed);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'うに時間割',
+        title: strings.appName,
         builder: (context, child) =>
-            AccessibilityScope(storage: storage, child: child!),
+            AccessibilityScope(storage: widget.storage, child: child!),
         debugShowCheckedModeBanner: false,
         scrollBehavior:
             const MaterialScrollBehavior().copyWith(scrollbars: false),
-        locale: const Locale('ja'),
-        supportedLocales: const [Locale('ja'), Locale('en')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        locale: Locale(strings.localeName),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
         theme: ThemeData(
           useMaterial3: true,
           fontFamily: 'Noto Sans JP',
@@ -106,6 +158,6 @@ class UniTableApp extends StatelessWidget {
               const DividerThemeData(color: Color(0xffe3e5df), thickness: 1),
           dialogTheme: const DialogThemeData(elevation: 0),
         ),
-        home: StorageGate(storage: storage, error: startupError),
+        home: StorageGate(storage: widget.storage, error: widget.startupError),
       );
 }

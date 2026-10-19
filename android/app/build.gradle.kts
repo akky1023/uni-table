@@ -35,7 +35,7 @@ android {
         applicationId = "net.neomenia.unitable"
         if (notificationTest) applicationIdSuffix = ".debug"
         manifestPlaceholders["appLabel"] =
-            if (notificationTest) "うに時間割（通知テスト）" else "うに時間割"
+            if (notificationTest) "@string/app_name_notification_test" else "@string/app_name"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 26
