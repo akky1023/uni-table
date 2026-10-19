@@ -2,6 +2,16 @@
 
 次のリリースからRelease Pleaseが自動更新します。
 
+## [1.1.2](https://github.com/akky1023/uni-table/compare/v1.1.1...v1.1.2) (2026-10-19)
+
+
+### 修正
+
+* give notification test APK a separate debug app ID ([d7ea1c4](https://github.com/akky1023/uni-table/commit/d7ea1c4bd7beb0be70f0143c47f787494012ef16))
+* improve notification settings UI ([51f074b](https://github.com/akky1023/uni-table/commit/51f074bf01f2430ad2327fa2d5ec697a25d49c2f))
+* in-app version ([3a02ac6](https://github.com/akky1023/uni-table/commit/3a02ac6adad1ab5fe0798ab353fd2a3615b5f844))
+* reduce notification delays and add task action ([6eb8531](https://github.com/akky1023/uni-table/commit/6eb8531a127c121a457dc56c40ba42df52315dc3))
+
 ## [1.1.1](https://github.com/akky1023/uni-table/compare/v1.1.0...v1.1.1) (2026-10-16)
 
 
