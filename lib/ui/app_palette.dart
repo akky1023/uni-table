@@ -131,6 +131,16 @@ Map<String, int> paletteDefaults(bool dark) => {
         'accent_text': 0xffc5ecd9,
         'outline': 0xff354139,
         'holiday_text': 0xffffa1a8,
+        // Fade periods toward the background while preserving scheduled days.
+        for (final key in [
+          'calendar_teaching_period',
+          'calendar_replacement',
+          'calendar_exam_period',
+        ])
+          key: Color.alphaBlend(
+            darkTint(Color(lightPalette[key]!)).withValues(alpha: .2),
+            const Color(0xff141b17),
+          ).toARGB32(),
       },
     };
 
