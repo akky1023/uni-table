@@ -71,6 +71,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           .toSet();
   List<int> get visibleWeekdays =>
       orderedWeekdays.where((day) => !hiddenWeekdays.contains(day)).toList();
+  String get defaultCourseFontSize => desktop ? '18' : '12';
+  String get defaultRoomFontSize => desktop ? '12' : '11';
   double get timetableGutter => desktop ? 36 : 30;
   double get cellMargin => desktop ? 3 : 1;
   String selectedTerm = '';
@@ -1531,12 +1533,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               11)
           .fold<double>(0, max),
       MediaQuery.textScalerOf(context).scale(
-                  double.tryParse(data.setting('course_font_size', '18')) ??
-                      18) *
+                  double.tryParse(data.setting(
+                          'course_font_size', defaultCourseFontSize)) ??
+                      double.parse(defaultCourseFontSize)) *
               1.3 *
               3 +
           MediaQuery.textScalerOf(context).scale(
-                  double.tryParse(data.setting('room_font_size', '12')) ?? 12) *
+                  double.tryParse(data.setting(
+                          'room_font_size', defaultRoomFontSize)) ??
+                      double.parse(defaultRoomFontSize)) *
               1.3 +
           24 +
           cellMargin * 2);
@@ -1818,8 +1823,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                       fontSize: double.tryParse(data.setting(
-                                              'course_font_size', '18')) ??
-                                          18,
+                                              'course_font_size',
+                                              defaultCourseFontSize)) ??
+                                          double.parse(defaultCourseFontSize),
                                       height: 1.3,
                                       color: past
                                           ? mutedText(context,
@@ -1838,8 +1844,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: double.tryParse(
-                                      data.setting('room_font_size', '12')) ??
-                                  12,
+                                      data.setting('room_font_size',
+                                          defaultRoomFontSize)) ??
+                                  double.parse(defaultRoomFontSize),
                               height: 1.3,
                               color: past
                                   ? mutedText(context,
@@ -3550,17 +3557,19 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(strings.courseFontSize),
-                trailing: Text(data.setting('course_font_size', '18')),
+                trailing: Text(
+                    data.setting('course_font_size', defaultCourseFontSize)),
                 onTap: () =>
                     editTimetableFont('course_font_size',
-                strings.courseFontSize, '18')),
+                strings.courseFontSize, defaultCourseFontSize)),
             ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(strings.roomFontSize),
-                trailing: Text(data.setting('room_font_size', '12')),
+                trailing: Text(
+                    data.setting('room_font_size', defaultRoomFontSize)),
                 onTap: () =>
                     editTimetableFont('room_font_size',
-                strings.roomFontSize, '12')),
+                strings.roomFontSize, defaultRoomFontSize)),
             ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(strings.hiddenWeekdays),
