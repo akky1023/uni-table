@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'data/database.dart';
+import 'app_info.dart';
 import 'ui/storage_gate.dart';
 import 'ui/accessibility.dart';
 
@@ -16,6 +17,7 @@ void main(List<String> arguments) async {
     try {
       // Exercise packaged native SQLite and path-provider through the real runner.
       final support = await getApplicationSupportDirectory();
+      final version = await loadAppVersion();
       check = UnitDatabase.open('${temporary.path}/check.unitable');
       check.transaction(
           () => check!.put('courses', {'id': 'check', 'name': '動作確認'}));
@@ -25,8 +27,13 @@ void main(List<String> arguments) async {
       final output =
           arguments.where((a) => a.startsWith('--report=')).firstOrNull;
       if (output != null) {
-        await File(output.substring(9)).writeAsString(jsonEncode(
-            {'ok': true, 'sqlite': true, 'supportDirectory': support.path}));
+        await File(output.substring(9)).writeAsString(jsonEncode({
+          'ok': true,
+          'sqlite': true,
+          'supportDirectory': support.path,
+          'appVersion': version,
+          'debugFeatures': const bool.fromEnvironment('UNITABLE_NOTIFICATION_TEST'),
+        }));
       }
       check.dispose();
       check = null;

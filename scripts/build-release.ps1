@@ -2,9 +2,13 @@ param(
     [ValidateSet('all','windows','android')][string]$Target = 'all',
     [switch]$SkipChecks,
     [switch]$SkipRestore,
-    [switch]$PortableOnly
+    [switch]$PortableOnly,
+    [switch]$IncludeDebugBuilds,
+    [switch]$OfficialRelease
 )
 $ErrorActionPreference = 'Stop'
+$buildVariants = @($false)
+if ($IncludeDebugBuilds) { $buildVariants += $true }
 $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location -LiteralPath $projectRoot
 $toolsRoot = Join-Path $projectRoot '.tools'
@@ -13,6 +17,13 @@ if (-not (Test-Path -LiteralPath $flutter)) { $flutter = (Get-Command flutter -E
 $dart = Join-Path (Split-Path $flutter -Parent) 'dart.bat'
 $version = [regex]::Match((Get-Content pubspec.yaml -Raw), '(?m)^version:\s*([\d.]+)\+(\d+)').Groups[1].Value
 if (-not $version) { throw 'Cannot determine application version.' }
+$packageVersion = $version
+$localBuild = -not ($OfficialRelease -or $env:GITHUB_ACTIONS -eq 'true')
+$buildArgs = @()
+if ($localBuild) {
+    $version = "test+$packageVersion"
+    $buildArgs += '--dart-define=UNITABLE_LOCAL_BUILD=true'
+}
 $dist = Join-Path $projectRoot 'dist'
 New-Item -ItemType Directory -Force $dist | Out-Null
 $jdk = Get-ChildItem (Join-Path $toolsRoot 'jdk') -Directory -ErrorAction SilentlyContinue | Where-Object { Test-Path (Join-Path $_.FullName 'bin\java.exe') } | Select-Object -First 1
@@ -56,56 +67,76 @@ if ($Target -in @('all','android')) {
         $password = $null
         Write-Output 'Created persistent APK signing key in .tools/signing. Back up this directory securely.'
     }
-    & $flutter build apk --release --no-pub
-    Assert-Exit 'Android release build'
-    $apk = Join-Path $dist "UniTable-$version-android.apk"
-    Copy-Item -LiteralPath 'build\app\outputs\flutter-apk\app-release.apk' -Destination $apk -Force
-    $apksigner = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\apksigner.bat'
-    & $apksigner verify --verbose $apk
-    Assert-Exit 'APK signature verification'
-    $aapt = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\aapt.exe'
-    $resources = & $aapt dump resources $apk
-    Assert-Exit 'APK resource verification'
-    if (-not ($resources -match 'drawable/ic_notification')) {
-        throw 'Notification icon is missing from the release APK'
+    foreach ($debugBuild in $buildVariants) {
+        $variantArgs = @($buildArgs)
+        if ($debugBuild) { $variantArgs += '--dart-define=UNITABLE_NOTIFICATION_TEST=true' }
+        $variantSuffix = if ($debugBuild) { '-debug' } else { '' }
+        & $flutter build apk --release --no-pub @variantArgs
+        Assert-Exit 'Android release build'
+        $apk = Join-Path $dist "UniTable-$version-android$variantSuffix.apk"
+        Copy-Item -LiteralPath 'build\app\outputs\flutter-apk\app-release.apk' -Destination $apk -Force
+        $apksigner = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\apksigner.bat'
+        & $apksigner verify --verbose $apk
+        Assert-Exit 'APK signature verification'
+        $aapt = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\aapt.exe'
+        $metadata = & $aapt dump badging $apk
+        Assert-Exit 'APK identity verification'
+        $expectedId = if ($debugBuild) { 'net.neomenia.unitable.debug' } else { 'net.neomenia.unitable' }
+        if (-not ($metadata | Where-Object { $_.StartsWith("package: name='$expectedId' ") })) {
+            throw "Unexpected Android application ID: $expectedId"
+        }
+        $resources = & $aapt dump resources $apk
+        Assert-Exit 'APK resource verification'
+        if (-not ($resources -match 'drawable/ic_notification')) {
+            throw 'Notification icon is missing from the release APK'
+        }
     }
 }
 
 if ($Target -in @('all','windows')) {
-    & $flutter build windows --release --no-pub
-    Assert-Exit 'Windows release build'
-    $release = Join-Path $projectRoot 'build\windows\x64\runner\Release'
-    $bundle = Join-Path $dist "UniTable-$version-windows-x64"
-    $runningBundle = Get-Process -Name UniTable -ErrorAction SilentlyContinue | Where-Object {
-        $_.Path -and ([IO.Path]::GetDirectoryName($_.Path) -eq $bundle)
-    }
-    if ($runningBundle) {
-        $buildNumber = [regex]::Match((Get-Content pubspec.yaml -Raw), '(?m)^version:\s*[\d.]+\+(\d+)').Groups[1].Value
-        $bundle = Join-Path $dist "UniTable-$version-windows-x64-build$buildNumber"
-        Write-Output "Keeping the running application; publishing the updated portable bundle to $bundle"
-    }
-    New-Item -ItemType Directory -Force $bundle | Out-Null
-    Copy-Item -Path (Join-Path $release '*') -Destination $bundle -Recurse -Force
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination (Join-Path $bundle 'LICENSE') -Force
-    # App-local MSVC runtime enables the portable build without a separate installer.
-    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-    $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-    $crt = Get-ChildItem (Join-Path $vs 'VC\Redist\MSVC\*\x64\*') -Directory | Where-Object { $_.Name -match '^Microsoft\.VC\d+\.CRT$' } | Sort-Object FullName -Descending | Select-Object -First 1
-    if (-not $crt) { throw 'MSVC redistributable DLLs were not found.' }
-    Copy-Item -Path (Join-Path $crt.FullName '*.dll') -Destination $bundle -Force
-    $report = Join-Path $dist 'windows-smoke-test.json'
-    if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report }
-    $check = Start-Process -FilePath (Join-Path $bundle 'UniTable.exe') -WorkingDirectory $bundle -WindowStyle Hidden -ArgumentList @('--verify-installation', "`"--report=$report`"") -PassThru
-    if (-not $check.WaitForExit(30000)) { Stop-Process -Id $check.Id; throw 'Windows executable startup check timed out.' }
-    if ($check.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $report) -or -not ((Get-Content -LiteralPath $report -Raw | ConvertFrom-Json).ok)) { throw 'Windows executable startup check failed.' }
-    [IO.File]::WriteAllText((Join-Path $bundle 'README.txt'), "UniTable $version`r`nStart UniTable.exe. Keep the data folder and DLL files beside the executable.`r`nLocal notifications on Windows require the MSIX edition.`r`n", [Text.UTF8Encoding]::new($false))
-    $zip = Join-Path $dist "UniTable-$version-windows-x64.zip"
-    Compress-Archive -LiteralPath $bundle -DestinationPath $zip -Force
-    if (-not $PortableOnly) {
-        $iscc = Join-Path $toolsRoot 'inno\ISCC.exe'
-        if (-not (Test-Path -LiteralPath $iscc)) { $iscc = (Get-Command ISCC.exe -ErrorAction Stop).Source }
-        & $iscc "/DAppVersion=$version" "/DBundleDir=$bundle" "/DOutputDir=$dist" (Join-Path $projectRoot 'packaging\windows.iss')
-        Assert-Exit 'Windows installer build'
+    foreach ($debugBuild in $buildVariants) {
+        $variantArgs = @($buildArgs)
+        if ($debugBuild) { $variantArgs += '--dart-define=UNITABLE_NOTIFICATION_TEST=true' }
+        $variantSuffix = if ($debugBuild) { '-debug' } else { '' }
+        & $flutter build windows --release --no-pub @variantArgs
+        Assert-Exit 'Windows release build'
+        $release = Join-Path $projectRoot 'build\windows\x64\runner\Release'
+        $bundle = Join-Path $dist "UniTable-$version-windows-x64$variantSuffix"
+        $runningBundle = Get-Process -Name UniTable -ErrorAction SilentlyContinue | Where-Object {
+            $_.Path -and ([IO.Path]::GetDirectoryName($_.Path) -eq $bundle)
+        }
+        if ($runningBundle) {
+            $buildNumber = [regex]::Match((Get-Content pubspec.yaml -Raw), '(?m)^version:\s*[\d.]+\+(\d+)').Groups[1].Value
+            $bundle = Join-Path $dist "UniTable-$version-windows-x64$variantSuffix-build$buildNumber"
+            Write-Output "Keeping the running application; publishing the updated portable bundle to $bundle"
+        }
+        New-Item -ItemType Directory -Force $bundle | Out-Null
+        Copy-Item -Path (Join-Path $release '*') -Destination $bundle -Recurse -Force
+        Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination (Join-Path $bundle 'LICENSE') -Force
+        # App-local MSVC runtime enables the portable build without a separate installer.
+        $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+        $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        $crt = Get-ChildItem (Join-Path $vs 'VC\Redist\MSVC\*\x64\*') -Directory | Where-Object { $_.Name -match '^Microsoft\.VC\d+\.CRT$' } | Sort-Object FullName -Descending | Select-Object -First 1
+        if (-not $crt) { throw 'MSVC redistributable DLLs were not found.' }
+        Copy-Item -Path (Join-Path $crt.FullName '*.dll') -Destination $bundle -Force
+        $report = Join-Path $dist "windows$variantSuffix-smoke-test.json"
+        if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report }
+        $check = Start-Process -FilePath (Join-Path $bundle 'UniTable.exe') -WorkingDirectory $bundle -WindowStyle Hidden -ArgumentList @('--verify-installation', "`"--report=$report`"") -PassThru
+        if (-not $check.WaitForExit(30000)) { Stop-Process -Id $check.Id; throw 'Windows executable startup check timed out.' }
+        if ($check.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $report) -or -not ((Get-Content -LiteralPath $report -Raw | ConvertFrom-Json).ok)) { throw 'Windows executable startup check failed.' }
+        if ((Get-Content -LiteralPath $report -Raw | ConvertFrom-Json).appVersion -cne $version) { throw 'Windows in-app version does not match the release version.' }
+        if ((Get-Content -LiteralPath $report -Raw | ConvertFrom-Json).debugFeatures -ne $debugBuild) { throw 'Windows debug feature flag does not match the package variant.' }
+        [IO.File]::WriteAllText((Join-Path $bundle 'README.txt'), "UniTable $version`r`nStart UniTable.exe. Keep the data folder and DLL files beside the executable.`r`nLocal notifications on Windows require the MSIX edition.`r`n", [Text.UTF8Encoding]::new($false))
+        $zip = Join-Path $dist "UniTable-$version-windows-x64$variantSuffix.zip"
+        Compress-Archive -LiteralPath $bundle -DestinationPath $zip -Force
+        if (-not $PortableOnly) {
+            $iscc = Join-Path $toolsRoot 'inno\ISCC.exe'
+            if (-not (Test-Path -LiteralPath $iscc)) { $iscc = (Get-Command ISCC.exe -ErrorAction Stop).Source }
+            $installerArgs = @()
+            if ($debugBuild) { $installerArgs += '/DTestBuild=1' }
+            & $iscc "/DAppVersion=$packageVersion" "/DDisplayVersion=$version" "/DBundleDir=$bundle" "/DOutputDir=$dist" @installerArgs (Join-Path $projectRoot 'packaging\windows.iss')
+            Assert-Exit 'Windows installer build'
+        }
     }
 }
 

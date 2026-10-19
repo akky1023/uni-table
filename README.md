@@ -62,10 +62,16 @@ flutter test
 
 # 両プラットフォームをビルド
 .\scripts\build-release.ps1 -Target all
+# 通常版とデバッグ用機能付きのAPK・Windowsインストーラー・ZIPをビルド
+.\scripts\build-release.ps1 -Target all -IncludeDebugBuilds
 # 個別指定: -Target windows / -Target android
 ```
 
 ビルドスクリプトは`.tools/flutter`のSDKを優先し、なければPATH上のFlutterを使用します。成果物とSHA-256チェックサムは`dist/`に出力します。
+
+`build-release.ps1`をローカルで実行すると、アプリ内のバージョンと成果物名は`test+1.0.1`の形式になります（番号は`pubspec.yaml`から取得）。Androidのバージョン名にも同じ表記を使用します。GitHub Actions上、または`-OfficialRelease`指定時は通常の番号を使用します。Flutterを直接実行する場合は`--dart-define=UNITABLE_LOCAL_BUILD=true`を指定してください。
+
+GitHubのリリース作成・下書きリリース復旧では、通常版とデバッグ版を両方ビルドして配布します。デバッグ版のファイル名は `UniTable-<version>-android-debug.apk`、`UniTable-<version>-windows-x64-debug-setup.exe`、`UniTable-<version>-windows-x64-debug.zip` です。通常版と同じ署名・チェックサム・来歴証明の対象になります。AndroidはアプリID末尾の `.debug`、Windowsはインストール先・ショートカット・端末設定の保存先で通常版と分離します。
 
 確認用の未署名MSIXは次のコマンドで作成できます。Windows SDKのMakeAppxを使用し、証明書のインストールは行いません。配布・通常のインストール用には署名の準備が必要です。
 
@@ -93,6 +99,9 @@ Androidの署名情報は`android/key.properties`または`.tools/signing/androi
 
 ## 現時点の補足
 
+- 通知テスト用APKは `flutter build apk --release --dart-define=UNITABLE_NOTIFICATION_TEST=true` で作成できます。アプリIDは `net.neomenia.unitable.debug`、表示名は「うに時間割（通知テスト）」となり、通常版と別々にインストールできます。設定の「通知」で科目を選び、即時・30秒後・5分後の課題確認通知を試せます。通常ビルドにはテストボタンを表示しません。
+- Androidの通知遅延を軽減するには、設定の「通知」から「正確な時刻の通知を許可」でアラームとリマインダーを許可してください。遅れる場合は「省電力設定を確認」からバッテリーの制限も見直せます。
+- 講義終了後の課題確認通知にある「課題を追加」を押すと、その科目を選択済みの課題登録画面が開きます。
 - Windowsの通知にはMSIX版が必要です。現行のインストーラー / ポータブル版では利用できません。
 - 同梱の祝日データは1955〜2027年です。更新用スクリプトは`scripts/update_holidays.py`です。
 - Android実機での通知配信など、実機確認を継続中です。

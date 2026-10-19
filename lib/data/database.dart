@@ -474,7 +474,9 @@ class Storage extends ChangeNotifier {
     support = applicationDirectory ?? await getApplicationSupportDirectory();
     // Keep the original Windows data location when the display name changes.
     if (Platform.isWindows && applicationDirectory == null) {
-      support = Directory(p.join(p.dirname(support.path), 'UniTable'));
+      const debugBuild = bool.fromEnvironment('UNITABLE_NOTIFICATION_TEST');
+      support = Directory(p.join(p.dirname(support.path),
+          debugBuild ? 'UniTable.debug' : 'UniTable'));
     }
     await support.create(recursive: true);
     preferences = File(p.join(support.path, 'storage-location.json'));
