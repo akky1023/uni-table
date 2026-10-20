@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:timezone/timezone.dart' as tz;
 import 'package:unitable/domain/schedule.dart';
 import 'package:unitable/services/notifications.dart';
 import 'fixtures.dart';
@@ -182,16 +183,25 @@ void main() {
       expect(destinations, ['c1']);
     });
 
-    test('30秒後のテスト通知を秒単位で予約する', () async {
-      final data = futureData();
-      final before = DateTime.now();
-      await AndroidNotices().sendTestNotification(data, data.rows('courses').single,
-          delay: const Duration(seconds: 30));
-      final args = calls.singleWhere((c) => c.method == 'zonedSchedule').arguments as Map;
-      final at = DateTime.parse(args['scheduledDateTime'] as String);
-      expect(at.difference(before).inSeconds, inInclusiveRange(29, 32));
-      expect(args['id'], NotificationService.testNotificationId);
-    });
+    for (final zone in ['Asia/Tokyo', 'UTC', 'America/New_York']) {
+      test('30秒後のテスト通知を秒単位で予約する（$zone）', () async {
+        final data = futureData();
+        data.rows('settings').add({'id': 'timezone', 'value': zone});
+        final before = DateTime.now();
+        await AndroidNotices().sendTestNotification(data, data.rows('courses').single,
+            delay: const Duration(seconds: 30));
+        final args = calls.singleWhere((c) => c.method == 'zonedSchedule').arguments as Map;
+        expect(args['timeZoneName'], zone);
+        // The plugin sends the wall-clock time and its timezone separately.
+        final wallTime = DateTime.parse(args['scheduledDateTime'] as String);
+        final at = tz.TZDateTime(
+            tz.getLocation(args['timeZoneName'] as String),
+            wallTime.year, wallTime.month, wallTime.day,
+            wallTime.hour, wallTime.minute, wallTime.second);
+        expect(at.difference(before).inSeconds, inInclusiveRange(29, 32));
+        expect(args['id'], NotificationService.testNotificationId);
+      });
+    }
 
     test('予約補充時もテスト通知の予約を保持する', () async {
       pending = [
