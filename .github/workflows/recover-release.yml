@@ -128,7 +128,7 @@ jobs:
           & scripts/build-release.ps1 -Target all -SkipRestore @variantArgs
       - name: Generate trusted workflow provenance
         id: provenance
-        uses: actions/attest-build-provenance/predicate@864457a58d4733d7f1574bd8821fa24e02cf7538 # predicate v2.0.0
+        uses: actions/attest-build-provenance/predicate@9d57eef8c06cd9d6b433effeeb7a6a77b3ff94ad # predicate v2.0.0
       - name: Record the tagged application source
         env:
           WORKFLOW_PREDICATE: ${{ steps.provenance.outputs.predicate }}
