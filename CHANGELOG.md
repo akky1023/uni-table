@@ -2,6 +2,22 @@
 
 次のリリースからRelease Pleaseが自動更新します。
 
+## [1.2.0](https://github.com/akky1023/uni-table/compare/v1.1.2...v1.2.0) (2026-10-20)
+
+
+### 機能追加
+
+* supports english ([accb5aa](https://github.com/akky1023/uni-table/commit/accb5aa2dc434c38016784801bbbd43c92eda454))
+
+
+### 修正
+
+* colours in dark mode ([f179517](https://github.com/akky1023/uni-table/commit/f179517ae191d9bec43fcb95bac9576918cc513b))
+* set up notification icon ([a9e0f1f](https://github.com/akky1023/uni-table/commit/a9e0f1fe3d7a5ea3306dc61af0eedc43dd6986fc))
+* smaller default text size for android ([8273e84](https://github.com/akky1023/uni-table/commit/8273e847255d12ce4467231f1aee5f91f3bff182))
+* some vulnerability ([31494fd](https://github.com/akky1023/uni-table/commit/31494fd58c395cd121e63785c34f190699c43e17))
+* 通知テストエラーの修正 ([eee7d00](https://github.com/akky1023/uni-table/commit/eee7d002219864a5915eeb2f33e26c21f10261b4))
+
 ## [1.1.2](https://github.com/akky1023/uni-table/compare/v1.1.1...v1.1.2) (2026-10-19)
 
 
