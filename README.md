@@ -19,7 +19,7 @@
 - Android: Android 8.0（API 26）以上
 - Windows: Windows 10 / 11、x64
 - バージョン: [pubspec.yaml](pubspec.yaml)を参照
-- 配布形式: APK、Windowsインストーラー、ポータブルZIP
+- 配布形式: CPU別APK（arm64-v8a / armeabi-v7a / x86_64）、Windowsインストーラー、ポータブルZIP
 
 配布先・インストール手順: **後日追加**。
 
@@ -72,9 +72,11 @@ flutter test
 
 ビルドスクリプトは`.tools/flutter`のSDKを優先し、なければPATH上のFlutterを使用します。成果物とSHA-256チェックサムは`dist/`に出力します。
 
+Androidは`--split-per-abi`でCPU別にビルドし、`UniTable-<version>-android-<abi>.apk`を出力します。端末に合うAPKを1つインストールしてください。64bit ARM端末は`arm64-v8a`、32bit ARM端末は`armeabi-v7a`、x86の64bit端末・エミュレーターは`x86_64`を選びます。CPUを分けてもAndroidのビルド番号は`pubspec.yaml`の値を共通で使用します。
+
 `build-release.ps1`をローカルで実行すると、アプリ内のバージョンと成果物名は`test+1.0.1`の形式になります（番号は`pubspec.yaml`から取得）。Androidのバージョン名にも同じ表記を使用します。GitHub Actions上、または`-OfficialRelease`指定時は通常の番号を使用します。Flutterを直接実行する場合は`--dart-define=UNITABLE_LOCAL_BUILD=true`を指定してください。
 
-GitHubのリリース作成・下書きリリース復旧では、通常版とデバッグ版を両方ビルドして配布します。デバッグ版のファイル名は `UniTable-<version>-android-debug.apk`、`UniTable-<version>-windows-x64-debug-setup.exe`、`UniTable-<version>-windows-x64-debug.zip` です。通常版と同じ署名・チェックサム・来歴証明の対象になります。AndroidはアプリID末尾の `.debug`、Windowsはインストール先・ショートカット・端末設定の保存先で通常版と分離します。
+GitHubのリリース作成・下書きリリース復旧では、通常版とデバッグ版を両方ビルドして配布します。デバッグ版のファイル名は `UniTable-<version>-android-<abi>-debug.apk`、`UniTable-<version>-windows-x64-debug-setup.exe`、`UniTable-<version>-windows-x64-debug.zip` です。通常版と同じ署名・チェックサム・来歴証明の対象になります。AndroidはアプリID末尾の `.debug`、Windowsはインストール先・ショートカット・端末設定の保存先で通常版と分離します。
 
 確認用の未署名MSIXは次のコマンドで作成できます。Windows SDKのMakeAppxを使用し、証明書のインストールは行いません。配布・通常のインストール用には署名の準備が必要です。
 
