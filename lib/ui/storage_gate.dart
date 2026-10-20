@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/database.dart';
+import '../l10n/strings.dart';
 import 'home.dart';
 
 class StorageGate extends StatefulWidget {
@@ -45,21 +46,22 @@ class _StorageGateState extends State<StorageGate> {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text('うに時間割',
+                            Text(
+                      strings.appName,
                                 style:
                                     Theme.of(context).textTheme.headlineSmall),
                             const SizedBox(height: 16),
-                            const Text('使う.unitableファイルを指定してください。'),
+                    Text(strings.chooseDatabase),
                             const SizedBox(height: 20),
                             FilledButton.icon(
                                 onPressed: busy ? null : () => choose(false),
                                 icon: const Icon(Icons.file_open_outlined),
-                                label: const Text('.unitableを開く')),
+                                label: Text(strings.openUnitable)),
                             const SizedBox(height: 8),
                             OutlinedButton.icon(
                                 onPressed: busy ? null : () => choose(true),
                                 icon: const Icon(Icons.add),
-                                label: const Text('新しい.unitableを作成')),
+                                label: Text(strings.createDatabase)),
                             if (busy) const LinearProgressIndicator(),
                             if (error != null)
                               Padding(

@@ -1,0 +1,2326 @@
+{
+  "databaseTooLarge": "データベースが上限（32 MiB・合計100,000件）を超えています。",
+  "unsafeDatabaseSchema": "安全でないデータベース構造のため開けません。",
+  "storageFileTooLarge": "ファイルがサイズ上限（32 MiB）を超えています。",
+  "@@locale": "ja",
+  "appName": "うに時間割",
+  "@appName": {
+    "description": "UniTable",
+    "placeholders": {}
+  },
+  "invalidDatabase": "うに時間割のデータベースではありません。元のファイルは変更していません。",
+  "@invalidDatabase": {
+    "description": "This is not a UniTable database. The original file has not been changed.",
+    "placeholders": {}
+  },
+  "unsupportedDatabaseVersion": "対応していないデータベースのバージョンです。",
+  "@unsupportedDatabaseVersion": {
+    "description": "This database version is not supported.",
+    "placeholders": {}
+  },
+  "databaseIntegrityFailed": "データベースの整合性チェックに失敗しました。",
+  "@databaseIntegrityFailed": {
+    "description": "The database integrity check failed.",
+    "placeholders": {}
+  },
+  "termNumber": "{arg0}学期",
+  "@termNumber": {
+    "description": "Term {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "selectMultiplePeriods": "2つ以上の期間を選んでください",
+  "@selectMultiplePeriods": {
+    "description": "Select at least two periods.",
+    "placeholders": {}
+  },
+  "selectSamePeriodKind": "同じ種類の期間を選んでください",
+  "@selectSamePeriodKind": {
+    "description": "Select periods of the same type.",
+    "placeholders": {}
+  },
+  "fileAlreadyExists": "保存先にファイルが存在します。",
+  "@fileAlreadyExists": {
+    "description": "A file already exists at this destination.",
+    "placeholders": {}
+  },
+  "selectDatabaseFirst": "先に.unitableファイルを指定してください",
+  "@selectDatabaseFirst": {
+    "description": "Select a .unitable file first.",
+    "placeholders": {}
+  },
+  "workingCopyFile": "指定ファイルを読み込めないため、作業用コピーを開きました: {arg0}",
+  "@workingCopyFile": {
+    "description": "Opened the working copy because the selected file could not be read: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "recoveredChanges": "指定フォルダーに未保存の変更を、端末内の作業用DBから復元しました。再試行してください。",
+  "@recoveredChanges": {
+    "description": "Recovered unsaved changes from the local working database. Please retry saving to the selected folder.",
+    "placeholders": {}
+  },
+  "workingCopyFolder": "指定フォルダーを読み込めないため、端末内の作業用コピーを開きました: {arg0}",
+  "@workingCopyFolder": {
+    "description": "Opened the local working copy because the selected folder could not be read: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "databaseNotFound": "指定した.unitableが見つかりません。ファイルを選び直してください。",
+  "@databaseNotFound": {
+    "description": "The selected .unitable file was not found. Please select it again.",
+    "placeholders": {}
+  },
+  "noOverwrite": "既存のファイルは上書きしません",
+  "@noOverwrite": {
+    "description": "Existing files will not be overwritten.",
+    "placeholders": {}
+  },
+  "selectUnitableFile": ".unitableファイルを選んでください",
+  "@selectUnitableFile": {
+    "description": "Select a .unitable file.",
+    "placeholders": {}
+  },
+  "emptyFile": "空のファイルは開けません",
+  "@emptyFile": {
+    "description": "Cannot open an empty file.",
+    "placeholders": {}
+  },
+  "externalSaveFailed": "端末内には保存済みですが、指定フォルダーへの保存に失敗しました: {arg0}",
+  "@externalSaveFailed": {
+    "description": "Saved on this device, but could not save to the selected folder: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "unspecified": "未指定",
+  "@unspecified": {
+    "description": "Not specified",
+    "placeholders": {}
+  },
+  "closurePeriod": "休業期間",
+  "@closurePeriod": {
+    "description": "Closure period",
+    "placeholders": {}
+  },
+  "teachingPeriod": "講義期間",
+  "@teachingPeriod": {
+    "description": "Teaching period",
+    "placeholders": {}
+  },
+  "firstSemester": "前期",
+  "@firstSemester": {
+    "description": "First semester",
+    "placeholders": {}
+  },
+  "secondSemester": "後期",
+  "@secondSemester": {
+    "description": "Second semester",
+    "placeholders": {}
+  },
+  "quarterNumber": "第{arg0}クオータ",
+  "@quarterNumber": {
+    "description": "Quarter {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "monday": "月",
+  "@monday": {
+    "description": "Mon",
+    "placeholders": {}
+  },
+  "tuesday": "火",
+  "@tuesday": {
+    "description": "Tue",
+    "placeholders": {}
+  },
+  "wednesday": "水",
+  "@wednesday": {
+    "description": "Wed",
+    "placeholders": {}
+  },
+  "thursday": "木",
+  "@thursday": {
+    "description": "Thu",
+    "placeholders": {}
+  },
+  "friday": "金",
+  "@friday": {
+    "description": "Fri",
+    "placeholders": {}
+  },
+  "saturday": "土",
+  "@saturday": {
+    "description": "Sat",
+    "placeholders": {}
+  },
+  "sunday": "日",
+  "@sunday": {
+    "description": "Sun",
+    "placeholders": {}
+  },
+  "classNoticeBody": "{arg0}から・教室 {arg1}",
+  "@classNoticeBody": {
+    "description": "Starts at {arg0} · Room: {arg1}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      }
+    }
+  },
+  "checkAssignments": "課題を確認",
+  "@checkAssignments": {
+    "description": "Check assignments",
+    "placeholders": {}
+  },
+  "checkAssignmentsBody": "{arg0}の課題はありましたか？",
+  "@checkAssignmentsBody": {
+    "description": "Were there any assignments for {arg0}?",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "deadlineNoticeBody": "期限 {arg0} {arg1}・{arg2}",
+  "@deadlineNoticeBody": {
+    "description": "Due {arg0} {arg1} · {arg2}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      },
+      "arg2": {
+        "type": "Object"
+      }
+    }
+  },
+  "notificationsOff": "通知はオフです",
+  "@notificationsOff": {
+    "description": "Notifications are off",
+    "placeholders": {}
+  },
+  "notificationChannel": "講義・課題",
+  "@notificationChannel": {
+    "description": "Courses and assignments",
+    "placeholders": {}
+  },
+  "notificationChannelDescription": "講義の教室と課題の期限",
+  "@notificationChannelDescription": {
+    "description": "Classroom reminders and assignment deadlines",
+    "placeholders": {}
+  },
+  "addAssignment": "課題を追加",
+  "@addAssignment": {
+    "description": "Add assignment",
+    "placeholders": {}
+  },
+  "testApkOnly": "通知テストはテストAPKで利用できます。",
+  "@testApkOnly": {
+    "description": "Notification tests are available in the test APK.",
+    "placeholders": {}
+  },
+  "testNoticeTitle": "課題を確認（通知テスト）",
+  "@testNoticeTitle": {
+    "description": "Check assignments (notification test)",
+    "placeholders": {}
+  },
+  "windowsNotificationsRequireMsix": "Windowsの通知はMSIX版で有効にできます。MSIXとしてビルド・インストールしてください。",
+  "@windowsNotificationsRequireMsix": {
+    "description": "Windows notifications require the MSIX edition. Build and install it as an MSIX package.",
+    "placeholders": {}
+  },
+  "scheduledNotices": "{arg0}件を予約済み{arg1}{arg2}{arg3}",
+  "@scheduledNotices": {
+    "description": "{arg0} notifications scheduled{arg1}{arg2}{arg3}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      },
+      "arg2": {
+        "type": "Object"
+      },
+      "arg3": {
+        "type": "Object"
+      }
+    }
+  },
+  "notificationSetupFailed": "通知の設定に失敗しました: {arg0}",
+  "@notificationSetupFailed": {
+    "description": "Could not configure notifications: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "hidePast": "過去を隠す",
+  "@hidePast": {
+    "description": "Hide past dates",
+    "placeholders": {}
+  },
+  "showPast": "過去を表示",
+  "@showPast": {
+    "description": "Show past dates",
+    "placeholders": {}
+  },
+  "basic": "基本",
+  "@basic": {
+    "description": "Basic",
+    "placeholders": {}
+  },
+  "background": "背景",
+  "@background": {
+    "description": "Background",
+    "placeholders": {}
+  },
+  "text": "文字",
+  "@text": {
+    "description": "Text",
+    "placeholders": {}
+  },
+  "mutedText": "薄い文字",
+  "@mutedText": {
+    "description": "Muted text",
+    "placeholders": {}
+  },
+  "accent": "アクセント",
+  "@accent": {
+    "description": "Accent",
+    "placeholders": {}
+  },
+  "onAccent": "アクセント上の文字",
+  "@onAccent": {
+    "description": "Text on accent",
+    "placeholders": {}
+  },
+  "menuBackground": "メニューの背景",
+  "@menuBackground": {
+    "description": "Menu background",
+    "placeholders": {}
+  },
+  "inputField": "入力欄",
+  "@inputField": {
+    "description": "Input field",
+    "placeholders": {}
+  },
+  "popup": "ポップアップ",
+  "@popup": {
+    "description": "Popup",
+    "placeholders": {}
+  },
+  "selection": "選択部分",
+  "@selection": {
+    "description": "Selection",
+    "placeholders": {}
+  },
+  "selectionText": "選択部分の文字",
+  "@selectionText": {
+    "description": "Selection text",
+    "placeholders": {}
+  },
+  "divider": "区切り線",
+  "@divider": {
+    "description": "Divider",
+    "placeholders": {}
+  },
+  "holidayText": "祝日・休業日の文字",
+  "@holidayText": {
+    "description": "Holiday and closure text",
+    "placeholders": {}
+  },
+  "timetable": "時間割",
+  "@timetable": {
+    "description": "Timetable",
+    "placeholders": {}
+  },
+  "freeTime": "空き時間",
+  "@freeTime": {
+    "description": "Free time",
+    "placeholders": {}
+  },
+  "course": "講義",
+  "@course": {
+    "description": "Course",
+    "placeholders": {}
+  },
+  "exam": "試験",
+  "@exam": {
+    "description": "Exam",
+    "placeholders": {}
+  },
+  "oneOffClass": "単発講義",
+  "@oneOffClass": {
+    "description": "One-off class",
+    "placeholders": {}
+  },
+  "replacementClass": "代替日の講義",
+  "@replacementClass": {
+    "description": "Replacement class",
+    "placeholders": {}
+  },
+  "closure": "休業日",
+  "@closure": {
+    "description": "Closed day",
+    "placeholders": {}
+  },
+  "pastDates": "過去の日付",
+  "@pastDates": {
+    "description": "Past dates",
+    "placeholders": {}
+  },
+  "assignments": "課題",
+  "@assignments": {
+    "description": "Assignments",
+    "placeholders": {}
+  },
+  "selectedAssignment": "選択中の課題",
+  "@selectedAssignment": {
+    "description": "Selected assignment",
+    "placeholders": {}
+  },
+  "annualCalendar": "年間予定",
+  "@annualCalendar": {
+    "description": "Calendar",
+    "placeholders": {}
+  },
+  "examDay": "試験がある日",
+  "@examDay": {
+    "description": "Day with an exam",
+    "placeholders": {}
+  },
+  "replacementActive": "代替日・講義あり",
+  "@replacementActive": {
+    "description": "Replacement day with classes",
+    "placeholders": {}
+  },
+  "activeDay": "講義がある日",
+  "@activeDay": {
+    "description": "Day with classes",
+    "placeholders": {}
+  },
+  "nationalHoliday": "祝日",
+  "@nationalHoliday": {
+    "description": "Japanese public holiday",
+    "placeholders": {}
+  },
+  "holiday": "休日",
+  "@holiday": {
+    "description": "Non-teaching day",
+    "placeholders": {}
+  },
+  "examPeriod": "試験期間",
+  "@examPeriod": {
+    "description": "Exam period",
+    "placeholders": {}
+  },
+  "replacementDay": "代替日",
+  "@replacementDay": {
+    "description": "Replacement day",
+    "placeholders": {}
+  },
+  "definedHoliday": "休日の定義に当てはまる日",
+  "@definedHoliday": {
+    "description": "Day matching the non-teaching day settings",
+    "placeholders": {}
+  },
+  "colorNumber": "色 {arg0}",
+  "@colorNumber": {
+    "description": "Color {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "opacity": "透明度",
+  "@opacity": {
+    "description": "Opacity",
+    "placeholders": {}
+  },
+  "requiredField": "入力してください",
+  "@requiredField": {
+    "description": "Enter a value.",
+    "placeholders": {}
+  },
+  "integerRange": "-1～2147483647の整数を入力してください",
+  "@integerRange": {
+    "description": "Enter an integer from -1 to 2147483647.",
+    "placeholders": {}
+  },
+  "selectDate": "日付を選択",
+  "@selectDate": {
+    "description": "Select date",
+    "placeholders": {}
+  },
+  "cancel": "キャンセル",
+  "@cancel": {
+    "description": "Cancel",
+    "placeholders": {}
+  },
+  "confirm": "決定",
+  "@confirm": {
+    "description": "Confirm",
+    "placeholders": {}
+  },
+  "pickDate": "日付を選ぶ",
+  "@pickDate": {
+    "description": "Choose date",
+    "placeholders": {}
+  },
+  "pickTime": "時刻を選ぶ",
+  "@pickTime": {
+    "description": "Choose time",
+    "placeholders": {}
+  },
+  "dateTimeFormat": "YYYY-MM-DD HH:mmで入力してください",
+  "@dateTimeFormat": {
+    "description": "Enter a date and time as YYYY-MM-DD HH:mm.",
+    "placeholders": {}
+  },
+  "dateRequired": "日付を選んでください",
+  "@dateRequired": {
+    "description": "Choose a date.",
+    "placeholders": {}
+  },
+  "saveChanges": "変更を保存しますか？",
+  "@saveChanges": {
+    "description": "Save changes?",
+    "placeholders": {}
+  },
+  "discardChanges": "編集を破棄",
+  "@discardChanges": {
+    "description": "Discard changes",
+    "placeholders": {}
+  },
+  "save": "保存",
+  "@save": {
+    "description": "Save",
+    "placeholders": {}
+  },
+  "confirmDelete": "削除しますか？",
+  "@confirmDelete": {
+    "description": "Delete?",
+    "placeholders": {}
+  },
+  "back": "戻る",
+  "@back": {
+    "description": "Back",
+    "placeholders": {}
+  },
+  "delete": "削除",
+  "@delete": {
+    "description": "Delete",
+    "placeholders": {}
+  },
+  "saving": "保存中…",
+  "@saving": {
+    "description": "Saving…",
+    "placeholders": {}
+  },
+  "hoursBefore": "{arg0}時間前",
+  "@hoursBefore": {
+    "description": "{arg0} hour(s) before",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      }
+    }
+  },
+  "daysBefore": "{arg0}日前",
+  "@daysBefore": {
+    "description": "{arg0} day(s) before",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      }
+    }
+  },
+  "weeksBefore": "{arg0}週間前",
+  "@weeksBefore": {
+    "description": "{arg0} week(s) before",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      }
+    }
+  },
+  "weeksBeforeAt": "{arg0}週間前の {arg1}",
+  "@weeksBeforeAt": {
+    "description": "{arg0} week(s) before at {arg1}",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      },
+      "arg1": {
+        "type": "Object"
+      }
+    }
+  },
+  "daysBeforeAt": "{arg0}日前の {arg1}",
+  "@daysBeforeAt": {
+    "description": "{arg0} day(s) before at {arg1}",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      },
+      "arg1": {
+        "type": "Object"
+      }
+    }
+  },
+  "previousSundayAt": "直前の日曜日の {arg0}",
+  "@previousSundayAt": {
+    "description": "Previous Sunday at {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "previousHolidayAt": "直前の休日の {arg0}",
+  "@previousHolidayAt": {
+    "description": "Previous non-teaching day at {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "holidaysBefore": "{arg0}回前の休日",
+  "@holidaysBefore": {
+    "description": "{arg0} non-teaching day(s) before",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      }
+    }
+  },
+  "fixedNoticeTime": "指定日時 {arg0}",
+  "@fixedNoticeTime": {
+    "description": "At {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "unknownNotification": "不明な通知",
+  "@unknownNotification": {
+    "description": "Unknown notification",
+    "placeholders": {}
+  },
+  "notificationTiming": "通知タイミング",
+  "@notificationTiming": {
+    "description": "Notification timing",
+    "placeholders": {}
+  },
+  "hoursBeforeUnit": "時間前",
+  "@hoursBeforeUnit": {
+    "description": "hour(s) before",
+    "placeholders": {}
+  },
+  "daysBeforeUnit": "日前",
+  "@daysBeforeUnit": {
+    "description": "day(s) before",
+    "placeholders": {}
+  },
+  "weeksBeforeUnit": "週間前",
+  "@weeksBeforeUnit": {
+    "description": "week(s) before",
+    "placeholders": {}
+  },
+  "holidaysBeforeUnit": "回前の休日",
+  "@holidaysBeforeUnit": {
+    "description": "non-teaching day(s) before",
+    "placeholders": {}
+  },
+  "atTime": "の",
+  "@atTime": {
+    "description": "at",
+    "placeholders": {}
+  },
+  "deadlineTimeHint": "省略すると期限と同じ時刻",
+  "@deadlineTimeHint": {
+    "description": "Uses the deadline time if left blank",
+    "placeholders": {}
+  },
+  "pickNotificationTime": "通知時刻を選ぶ",
+  "@pickNotificationTime": {
+    "description": "Choose notification time",
+    "placeholders": {}
+  },
+  "holidaysBeforeHelp": "期限の日より前の休日を数え、期限と同じ時刻に通知します。休日に含める日は設定で変更できます。",
+  "@holidaysBeforeHelp": {
+    "description": "Counts non-teaching days before the due date and notifies at the deadline time. You can choose which days count in Settings.",
+    "placeholders": {}
+  },
+  "notificationOffsetRange": "休日は1以上、それ以外は0以上を指定してください",
+  "@notificationOffsetRange": {
+    "description": "Enter at least 1 for non-teaching days, or at least 0 for other options.",
+    "placeholders": {}
+  },
+  "timeFormat": "00:00～23:59で入力してください",
+  "@timeFormat": {
+    "description": "Enter a time from 00:00 to 23:59.",
+    "placeholders": {}
+  },
+  "testNeedsCourse": "通知テストには講義を1件以上登録してください。",
+  "@testNeedsCourse": {
+    "description": "Add at least one course to test notifications.",
+    "placeholders": {}
+  },
+  "notificationPermissionRequired": "通知の許可が必要です。",
+  "@notificationPermissionRequired": {
+    "description": "Notification permission is required.",
+    "placeholders": {}
+  },
+  "testNotificationSent": "テスト通知を送信しました。",
+  "@testNotificationSent": {
+    "description": "Test notification sent.",
+    "placeholders": {}
+  },
+  "testNotificationScheduled": "{arg0}秒後のテスト通知を予約しました。画面を閉じて確認できます。",
+  "@testNotificationScheduled": {
+    "description": "Test notification scheduled in {arg0} seconds. You can close the app to check it.",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "testNotificationFailed": "通知テストに失敗しました: {arg0}",
+  "@testNotificationFailed": {
+    "description": "Notification test failed: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "notificationCourseMissing": "通知の講義が見つかりません。",
+  "@notificationCourseMissing": {
+    "description": "The course for this notification was not found.",
+    "placeholders": {}
+  },
+  "finishEditingToAddAssignment": "編集中の変更を保存または破棄すると、課題追加画面を開きます。",
+  "@finishEditingToAddAssignment": {
+    "description": "Save or discard your changes to open the assignment editor.",
+    "placeholders": {}
+  },
+  "saveInProgress": "保存中です。少し待ってからお試しください。",
+  "@saveInProgress": {
+    "description": "Saving. Please wait and try again.",
+    "placeholders": {}
+  },
+  "retrySaveInSettings": "指定フォルダーに保存できませんでした。設定画面から再試行できます。",
+  "@retrySaveInSettings": {
+    "description": "Could not save to the selected folder. You can retry in Settings.",
+    "placeholders": {}
+  },
+  "settings": "設定",
+  "@settings": {
+    "description": "Settings",
+    "placeholders": {}
+  },
+  "edit": "編集",
+  "@edit": {
+    "description": "Edit",
+    "placeholders": {}
+  },
+  "addPeriod": "期間を追加",
+  "@addPeriod": {
+    "description": "Add period",
+    "placeholders": {}
+  },
+  "mergePeriods": "期間をまとめる",
+  "@mergePeriods": {
+    "description": "Merge periods",
+    "placeholders": {}
+  },
+  "importHolidays": "祝日を休日にする",
+  "@importHolidays": {
+    "description": "Import Japanese public holidays",
+    "placeholders": {}
+  },
+  "close": "閉じる",
+  "@close": {
+    "description": "Close",
+    "placeholders": {}
+  },
+  "calendarActions": "年間予定の操作",
+  "@calendarActions": {
+    "description": "Calendar actions",
+    "placeholders": {}
+  },
+  "add": "追加",
+  "@add": {
+    "description": "Add",
+    "placeholders": {}
+  },
+  "switchToView": "閲覧モードに切り替え",
+  "@switchToView": {
+    "description": "Switch to view mode",
+    "placeholders": {}
+  },
+  "switchToEdit": "編集モードに切り替え",
+  "@switchToEdit": {
+    "description": "Switch to edit mode",
+    "placeholders": {}
+  },
+  "registerCourse": "講義を登録",
+  "@registerCourse": {
+    "description": "Add course",
+    "placeholders": {}
+  },
+  "registerOneOffClass": "単発講義を登録",
+  "@registerOneOffClass": {
+    "description": "Add one-off class",
+    "placeholders": {}
+  },
+  "previousWeek": "前の週",
+  "@previousWeek": {
+    "description": "Previous week",
+    "placeholders": {}
+  },
+  "nextWeek": "次の週",
+  "@nextWeek": {
+    "description": "Next week",
+    "placeholders": {}
+  },
+  "thisWeek": "今週",
+  "@thisWeek": {
+    "description": "This week",
+    "placeholders": {}
+  },
+  "previousYear": "前の年度",
+  "@previousYear": {
+    "description": "Previous academic year",
+    "placeholders": {}
+  },
+  "nextYear": "次の年度",
+  "@nextYear": {
+    "description": "Next academic year",
+    "placeholders": {}
+  },
+  "createDatabase": "新しい.unitableを作成",
+  "@createDatabase": {
+    "description": "Create a .unitable file",
+    "placeholders": {}
+  },
+  "exportCopy": "コピーを書き出す",
+  "@exportCopy": {
+    "description": "Export a copy",
+    "placeholders": {}
+  },
+  "openDatabase": "データベースを開く",
+  "@openDatabase": {
+    "description": "Open database",
+    "placeholders": {}
+  },
+  "addTimeSlot": "コマを追加",
+  "@addTimeSlot": {
+    "description": "Add time slot",
+    "placeholders": {}
+  },
+  "changeRoomNoticeTiming": "教室の通知タイミングを変更",
+  "@changeRoomNoticeTiming": {
+    "description": "Change classroom reminder timing",
+    "placeholders": {}
+  },
+  "toggleRoomNotices": "教室通知をオン／オフ",
+  "@toggleRoomNotices": {
+    "description": "Toggle classroom reminders",
+    "placeholders": {}
+  },
+  "assignmentNotificationSettings": "課題の通知設定",
+  "@assignmentNotificationSettings": {
+    "description": "Assignment notification settings",
+    "placeholders": {}
+  },
+  "universityTimezoneSettings": "大学のタイムゾーン設定",
+  "@universityTimezoneSettings": {
+    "description": "University time zone settings",
+    "placeholders": {}
+  },
+  "turnNotificationsOff": "通知をオフにする",
+  "@turnNotificationsOff": {
+    "description": "Turn notifications off",
+    "placeholders": {}
+  },
+  "turnNotificationsOn": "通知をオンにする",
+  "@turnNotificationsOn": {
+    "description": "Turn notifications on",
+    "placeholders": {}
+  },
+  "exitEditing": "編集から戻る",
+  "@exitEditing": {
+    "description": "Exit editing",
+    "placeholders": {}
+  },
+  "unsavedFolderChanges": "指定フォルダーに未保存の変更があります。",
+  "@unsavedFolderChanges": {
+    "description": "There are unsaved changes for the selected folder.",
+    "placeholders": {}
+  },
+  "retry": "再試行",
+  "@retry": {
+    "description": "Retry",
+    "placeholders": {}
+  },
+  "deleteNamed": "{arg0}を削除しますか？",
+  "@deleteNamed": {
+    "description": "Delete {arg0}?",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteThisClass": "この時間の授業を削除しますか？",
+  "@deleteThisClass": {
+    "description": "Delete the class in this time slot?",
+    "placeholders": {}
+  },
+  "classLabel": "授業",
+  "@classLabel": {
+    "description": "Class",
+    "placeholders": {}
+  },
+  "choosePeriodToEdit": "編集する期間",
+  "@choosePeriodToEdit": {
+    "description": "Choose a period to edit",
+    "placeholders": {}
+  },
+  "teachingPeriodRequired": "講義期間を登録してください",
+  "@teachingPeriodRequired": {
+    "description": "Add a teaching period",
+    "placeholders": {}
+  },
+  "teachingPeriodHelp": "年間予定で講義期間を登録すると、時間割を編集できます。",
+  "@teachingPeriodHelp": {
+    "description": "Add a teaching period in the academic calendar to edit the timetable.",
+    "placeholders": {}
+  },
+  "goToCalendar": "年間予定へ",
+  "@goToCalendar": {
+    "description": "Open calendar",
+    "placeholders": {}
+  },
+  "addOneOffClass": "単発講義を追加",
+  "@addOneOffClass": {
+    "description": "Add one-off class",
+    "placeholders": {}
+  },
+  "weekdayName": "{arg0}曜日",
+  "@weekdayName": {
+    "description": "{arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "addExam": "試験を登録",
+  "@addExam": {
+    "description": "Add exam",
+    "placeholders": {}
+  },
+  "editExam": "試験を編集",
+  "@editExam": {
+    "description": "Edit exam",
+    "placeholders": {}
+  },
+  "deleteExam": "試験を削除",
+  "@deleteExam": {
+    "description": "Delete exam",
+    "placeholders": {}
+  },
+  "dayAndSlot": "{arg0}・{arg1}限",
+  "@dayAndSlot": {
+    "description": "{arg0} · Period {arg1}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      }
+    }
+  },
+  "courseName": "科目名",
+  "@courseName": {
+    "description": "Course name",
+    "placeholders": {}
+  },
+  "roomName": "教室名",
+  "@roomName": {
+    "description": "Room",
+    "placeholders": {}
+  },
+  "instructorName": "教員名",
+  "@instructorName": {
+    "description": "Instructor",
+    "placeholders": {}
+  },
+  "examSlotOccupied": "この時限には試験が登録されています",
+  "@examSlotOccupied": {
+    "description": "An exam is already scheduled in this time slot.",
+    "placeholders": {}
+  },
+  "addCourse": "講義を追加",
+  "@addCourse": {
+    "description": "Add course",
+    "placeholders": {}
+  },
+  "editClass": "授業を編集",
+  "@editClass": {
+    "description": "Edit class",
+    "placeholders": {}
+  },
+  "deleteClass": "授業を削除",
+  "@deleteClass": {
+    "description": "Delete class",
+    "placeholders": {}
+  },
+  "editClassDate": "実施日を編集",
+  "@editClassDate": {
+    "description": "Edit class date",
+    "placeholders": {}
+  },
+  "editCourse": "講義を編集",
+  "@editCourse": {
+    "description": "Edit course",
+    "placeholders": {}
+  },
+  "deleteAll": "まとめて削除",
+  "@deleteAll": {
+    "description": "Delete all",
+    "placeholders": {}
+  },
+  "deleteAllClassDates": "この講義の実施日をまとめて削除しますか？",
+  "@deleteAllClassDates": {
+    "description": "Delete all scheduled dates for this course?",
+    "placeholders": {}
+  },
+  "classDate": "実施日",
+  "@classDate": {
+    "description": "Class date",
+    "placeholders": {}
+  },
+  "addClassDate": "実施日を追加",
+  "@addClassDate": {
+    "description": "Add class date",
+    "placeholders": {}
+  },
+  "configureClassTimes": "設定で授業時間を登録してください",
+  "@configureClassTimes": {
+    "description": "Add class times in Settings.",
+    "placeholders": {}
+  },
+  "timeSlotNumber": "{arg0}限",
+  "@timeSlotNumber": {
+    "description": "Period {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "timeSlotRequired": "時限を選んでください",
+  "@timeSlotRequired": {
+    "description": "Choose a time slot.",
+    "placeholders": {}
+  },
+  "classDateConflict": "同じ実施日・時限に授業があります",
+  "@classDateConflict": {
+    "description": "A class is already scheduled for this date and time slot.",
+    "placeholders": {}
+  },
+  "datesAndSlots": "実施日と時限",
+  "@datesAndSlots": {
+    "description": "Class dates and time slots",
+    "placeholders": {}
+  },
+  "courseDetails": "講義の詳細・メモ",
+  "@courseDetails": {
+    "description": "Course details and notes",
+    "placeholders": {}
+  },
+  "addItem": "追加する",
+  "@addItem": {
+    "description": "Add",
+    "placeholders": {}
+  },
+  "dayChanges": "この日の変更",
+  "@dayChanges": {
+    "description": "Changes for this day",
+    "placeholders": {}
+  },
+  "assignmentsDue": "提出する課題",
+  "@assignmentsDue": {
+    "description": "Assignments due",
+    "placeholders": {}
+  },
+  "noVisibleWeekdays": "表示する曜日がありません",
+  "@noVisibleWeekdays": {
+    "description": "No weekdays to display",
+    "placeholders": {}
+  },
+  "chooseVisibleWeekdays": "設定で表示する曜日を選んでください。",
+  "@chooseVisibleWeekdays": {
+    "description": "Choose which weekdays to display in Settings.",
+    "placeholders": {}
+  },
+  "goToSettings": "設定へ",
+  "@goToSettings": {
+    "description": "Open settings",
+    "placeholders": {}
+  },
+  "daySchedule": "この日の予定",
+  "@daySchedule": {
+    "description": "Schedule for this day",
+    "placeholders": {}
+  },
+  "changeDayAndTime": "曜日と時間を変更",
+  "@changeDayAndTime": {
+    "description": "Change day and time",
+    "placeholders": {}
+  },
+  "courseNameValue": "講義名: {arg0}",
+  "@courseNameValue": {
+    "description": "Course: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "destinationValue": "提出先: {arg0}",
+  "@destinationValue": {
+    "description": "Submit to: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "relatedCourseValue": "該当の講義: {arg0}",
+  "@relatedCourseValue": {
+    "description": "Related course: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "submissionTimeValue": "提出時間: {arg0}",
+  "@submissionTimeValue": {
+    "description": "Submission time: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "noAssignmentsDue": "この日が提出期限の課題はありません",
+  "@noAssignmentsDue": {
+    "description": "No assignments are due on this day.",
+    "placeholders": {}
+  },
+  "imageAlt": "[画像: {arg0}]",
+  "@imageAlt": {
+    "description": "[Image: {arg0}]",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "roomAndInstructor": "教室  {arg0}\n教員  {arg1}",
+  "@roomAndInstructor": {
+    "description": "Room  {arg0}\\nInstructor  {arg1}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      }
+    }
+  },
+  "noNotes": "メモはまだありません。",
+  "@noNotes": {
+    "description": "No notes yet.",
+    "placeholders": {}
+  },
+  "courseTitle": "講義名",
+  "@courseTitle": {
+    "description": "Course name",
+    "placeholders": {}
+  },
+  "courseReminderLead": "開始何分前に通知（空欄: 全体設定、-1: オフ）",
+  "@courseReminderLead": {
+    "description": "Reminder minutes before class (blank: default, -1: off)",
+    "placeholders": {}
+  },
+  "extraDateConditions": "実施期間の追加条件",
+  "@extraDateConditions": {
+    "description": "Additional date restrictions",
+    "placeholders": {}
+  },
+  "optionalStartDate": "開始日（任意）",
+  "@optionalStartDate": {
+    "description": "Start date (optional)",
+    "placeholders": {}
+  },
+  "optionalEndDate": "終了日（任意）",
+  "@optionalEndDate": {
+    "description": "End date (optional)",
+    "placeholders": {}
+  },
+  "checkAssignmentsAfterClass": "終了後に課題の確認を通知",
+  "@checkAssignmentsAfterClass": {
+    "description": "Remind me to check assignments after class",
+    "placeholders": {}
+  },
+  "markdownNotes": "メモ（Markdown）",
+  "@markdownNotes": {
+    "description": "Notes (Markdown)",
+    "placeholders": {}
+  },
+  "endDateBeforeStart": "終了日は開始日以降にしてください",
+  "@endDateBeforeStart": {
+    "description": "The end date must be on or after the start date.",
+    "placeholders": {}
+  },
+  "configureTimeSlots": "設定で時限を登録してください",
+  "@configureTimeSlots": {
+    "description": "Add time slots in Settings.",
+    "placeholders": {}
+  },
+  "configureTeachingPeriod": "年間予定で講義期間を登録してください",
+  "@configureTeachingPeriod": {
+    "description": "Add a teaching period in the academic calendar.",
+    "placeholders": {}
+  },
+  "meetingSummary": "{arg0}{arg1}{arg2}限",
+  "@meetingSummary": {
+    "description": "{arg0}{arg1} · Period {arg2}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      },
+      "arg2": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteClassDate": "この実施日を削除",
+  "@deleteClassDate": {
+    "description": "Delete this class date",
+    "placeholders": {}
+  },
+  "classDateRequired": "実施日を追加してください",
+  "@classDateRequired": {
+    "description": "Add a class date.",
+    "placeholders": {}
+  },
+  "chooseSlotForEachDate": "実施日ごとに時限を選んでください",
+  "@chooseSlotForEachDate": {
+    "description": "Choose a time slot for each class date.",
+    "placeholders": {}
+  },
+  "meetingConflict": "同じ曜日・実施日・時限に授業があります。別の時限を選んでください。",
+  "@meetingConflict": {
+    "description": "A class already uses the same weekday, date and time slot. Choose another time slot.",
+    "placeholders": {}
+  },
+  "sessionDetails": "{arg0}  {arg1}限\n{arg2}–{arg3}\n教室 {arg4}\n教員 {arg5}",
+  "@sessionDetails": {
+    "description": "{arg0}  Period {arg1}\\n{arg2}–{arg3}\\nRoom {arg4}\\nInstructor {arg5}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      },
+      "arg2": {
+        "type": "Object"
+      },
+      "arg3": {
+        "type": "Object"
+      },
+      "arg4": {
+        "type": "Object"
+      },
+      "arg5": {
+        "type": "Object"
+      }
+    }
+  },
+  "cancelledOnThisDay": "この日は休講です",
+  "@cancelledOnThisDay": {
+    "description": "This class is cancelled on this day.",
+    "placeholders": {}
+  },
+  "replacementFor": "{arg0}の振替",
+  "@replacementFor": {
+    "description": "Replacement for {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "recurringSettings": "定期設定",
+  "@recurringSettings": {
+    "description": "Recurring settings",
+    "placeholders": {}
+  },
+  "classOnDate": "{arg0}の授業",
+  "@classOnDate": {
+    "description": "Class on {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "cancelled": "休講",
+  "@cancelled": {
+    "description": "Cancelled",
+    "placeholders": {}
+  },
+  "optionalReplacementDate": "振替日（任意）",
+  "@optionalReplacementDate": {
+    "description": "Replacement date (optional)",
+    "placeholders": {}
+  },
+  "replacementTimeSlot": "振替先のコマ",
+  "@replacementTimeSlot": {
+    "description": "Replacement time slot",
+    "placeholders": {}
+  },
+  "roomOverride": "この日の教室（空欄: 元の設定）",
+  "@roomOverride": {
+    "description": "Room for this day (blank: original)",
+    "placeholders": {}
+  },
+  "reminderOverride": "開始何分前に通知（空欄: 元の設定、-1: オフ）",
+  "@reminderOverride": {
+    "description": "Reminder minutes before class (blank: original, -1: off)",
+    "placeholders": {}
+  },
+  "replacementDateMustDiffer": "振替日は元の日と異なる日を選んでください",
+  "@replacementDateMustDiffer": {
+    "description": "Choose a replacement date different from the original date.",
+    "placeholders": {}
+  },
+  "assignmentsDeleted": "{arg0}件の課題を削除しました",
+  "@assignmentsDeleted": {
+    "description": "Deleted {arg0} assignment(s).",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      }
+    }
+  },
+  "undo": "元に戻す",
+  "@undo": {
+    "description": "Undo",
+    "placeholders": {}
+  },
+  "itemsSelected": "{arg0}件選択中",
+  "@itemsSelected": {
+    "description": "{arg0} selected",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "clearSelection": "選択を解除",
+  "@clearSelection": {
+    "description": "Clear selection",
+    "placeholders": {}
+  },
+  "done": "完了",
+  "@done": {
+    "description": "Done",
+    "placeholders": {}
+  },
+  "showCompleted": "完了した課題も表示",
+  "@showCompleted": {
+    "description": "Show completed assignments",
+    "placeholders": {}
+  },
+  "defaultNotifications": "通知の初期設定",
+  "@defaultNotifications": {
+    "description": "Default notifications",
+    "placeholders": {}
+  },
+  "noAssignments": "課題はありません",
+  "@noAssignments": {
+    "description": "No assignments",
+    "placeholders": {}
+  },
+  "addAssignmentHelp": "右下の＋から課題を登録できます。",
+  "@addAssignmentHelp": {
+    "description": "Use the + button at the bottom right to add an assignment.",
+    "placeholders": {}
+  },
+  "viewAssignment": "課題を表示",
+  "@viewAssignment": {
+    "description": "View assignment",
+    "placeholders": {}
+  },
+  "editAssignment": "課題を編集",
+  "@editAssignment": {
+    "description": "Edit assignment",
+    "placeholders": {}
+  },
+  "markIncomplete": "未完了に戻す",
+  "@markIncomplete": {
+    "description": "Mark as incomplete",
+    "placeholders": {}
+  },
+  "markComplete": "完了にする",
+  "@markComplete": {
+    "description": "Mark as complete",
+    "placeholders": {}
+  },
+  "deleteAssignment": "課題を削除",
+  "@deleteAssignment": {
+    "description": "Delete assignment",
+    "placeholders": {}
+  },
+  "weeksLater": "{arg0}週間後",
+  "@weeksLater": {
+    "description": "In {arg0} week(s)",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      }
+    }
+  },
+  "deadlineHint": "{arg0}の{arg1}{arg2}限目{arg3}に提出",
+  "@deadlineHint": {
+    "description": "Due {arg0}, {arg1}, period {arg2}{arg3}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      },
+      "arg2": {
+        "type": "Object"
+      },
+      "arg3": {
+        "type": "Object"
+      }
+    }
+  },
+  "registerAssignment": "課題を登録",
+  "@registerAssignment": {
+    "description": "Add assignment",
+    "placeholders": {}
+  },
+  "assignmentName": "課題名",
+  "@assignmentName": {
+    "description": "Assignment name",
+    "placeholders": {}
+  },
+  "deadline": "提出期限",
+  "@deadline": {
+    "description": "Due date and time",
+    "placeholders": {}
+  },
+  "chooseDeadlineFromTimetable": "時間割から提出日時を選ぶ",
+  "@chooseDeadlineFromTimetable": {
+    "description": "Choose due date from timetable",
+    "placeholders": {}
+  },
+  "destination": "提出先",
+  "@destination": {
+    "description": "Submit to",
+    "placeholders": {}
+  },
+  "notes": "メモ",
+  "@notes": {
+    "description": "Notes",
+    "placeholders": {}
+  },
+  "notifications": "通知",
+  "@notifications": {
+    "description": "Notifications",
+    "placeholders": {}
+  },
+  "addNotification": "通知を追加",
+  "@addNotification": {
+    "description": "Add notification",
+    "placeholders": {}
+  },
+  "deadlineMinuteRequired": "提出期限を分まで入力してください",
+  "@deadlineMinuteRequired": {
+    "description": "Enter the due date and time, including minutes.",
+    "placeholders": {}
+  },
+  "notificationAfterDeadline": "通知日時は期限以前にしてください",
+  "@notificationAfterDeadline": {
+    "description": "Notifications must be scheduled on or before the deadline.",
+    "placeholders": {}
+  },
+  "selectDeadline": "提出日時を選択",
+  "@selectDeadline": {
+    "description": "Select due date and time",
+    "placeholders": {}
+  },
+  "assignmentNotificationDefaults": "課題の通知・全体設定",
+  "@assignmentNotificationDefaults": {
+    "description": "Default assignment notifications",
+    "placeholders": {}
+  },
+  "assignmentNotificationDefaultsHelp": "新しい課題へ初期値として入れます。空にすると初期値の通知はありません。",
+  "@assignmentNotificationDefaultsHelp": {
+    "description": "Used as defaults for new assignments. Leave empty for no default notifications.",
+    "placeholders": {}
+  },
+  "choosePeriodDates": "開始日、終了日の順にカレンダーを選択してください。",
+  "@choosePeriodDates": {
+    "description": "Select the start date, then the end date on the calendar.",
+    "placeholders": {}
+  },
+  "cancelPeriodSelection": "期間選択をやめる",
+  "@cancelPeriodSelection": {
+    "description": "Cancel period selection",
+    "placeholders": {}
+  },
+  "desktopCalendarHelp": "クリックで日ごとの変更・ダブルクリックで期間編集・ドラッグで期間追加。右クリックで操作一覧。",
+  "@desktopCalendarHelp": {
+    "description": "Click to change a day, double-click to edit a period, or drag to add a period. Right-click for actions.",
+    "placeholders": {}
+  },
+  "mobileCalendarHelp": "タップで日ごとの変更・長押しで期間編集・長押ししてなぞると期間追加。",
+  "@mobileCalendarHelp": {
+    "description": "Tap to change a day, long-press to edit a period, or long-press and drag to add a period.",
+    "placeholders": {}
+  },
+  "deleteDayChanges": "この日の変更を削除",
+  "@deleteDayChanges": {
+    "description": "Delete changes for this day",
+    "placeholders": {}
+  },
+  "dailyChanges": "日ごとの変更",
+  "@dailyChanges": {
+    "description": "Daily changes",
+    "placeholders": {}
+  },
+  "viewDayClasses": "この日の講義を確認",
+  "@viewDayClasses": {
+    "description": "View classes for this day",
+    "placeholders": {}
+  },
+  "editDayPeriod": "この日の期間を編集",
+  "@editDayPeriod": {
+    "description": "Edit period for this day",
+    "placeholders": {}
+  },
+  "editNamed": "{arg0}を編集",
+  "@editNamed": {
+    "description": "Edit {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteNamedAction": "{arg0}を削除",
+  "@deleteNamedAction": {
+    "description": "Delete {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "period": "期間",
+  "@period": {
+    "description": "Period",
+    "placeholders": {}
+  },
+  "mergedPeriodName": "まとめた期間の名前（任意）",
+  "@mergedPeriodName": {
+    "description": "Merged period name (optional)",
+    "placeholders": {}
+  },
+  "registerPeriod": "期間を登録",
+  "@registerPeriod": {
+    "description": "Add period",
+    "placeholders": {}
+  },
+  "editPeriod": "期間を編集",
+  "@editPeriod": {
+    "description": "Edit period",
+    "placeholders": {}
+  },
+  "type": "種類",
+  "@type": {
+    "description": "Type",
+    "placeholders": {}
+  },
+  "universityClosure": "全学休業日・長期休暇",
+  "@universityClosure": {
+    "description": "University closure / vacation",
+    "placeholders": {}
+  },
+  "optionalName": "名前（任意）",
+  "@optionalName": {
+    "description": "Name (optional)",
+    "placeholders": {}
+  },
+  "startDate": "開始日",
+  "@startDate": {
+    "description": "Start date",
+    "placeholders": {}
+  },
+  "endDate": "終了日",
+  "@endDate": {
+    "description": "End date",
+    "placeholders": {}
+  },
+  "deleteDateRange": "この日程を削除",
+  "@deleteDateRange": {
+    "description": "Delete this date range",
+    "placeholders": {}
+  },
+  "addDateRange": "日程を追加",
+  "@addDateRange": {
+    "description": "Add date range",
+    "placeholders": {}
+  },
+  "universityDaySettings": "{arg0}の全学設定",
+  "@universityDaySettings": {
+    "description": "University settings for {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "universityClosed": "全学休業",
+  "@universityClosed": {
+    "description": "University closed",
+    "placeholders": {}
+  },
+  "optionalUniversityReplacement": "この日の代替日（任意）",
+  "@optionalUniversityReplacement": {
+    "description": "Replacement date for this day (optional)",
+    "placeholders": {}
+  },
+  "replacementTimetable": "代わりの時間割",
+  "@replacementTimetable": {
+    "description": "Replacement timetable",
+    "placeholders": {}
+  },
+  "universityReplacementHelp": "全学代替日は、その日に本来ある曜日の講義を置き換えます。",
+  "@universityReplacementHelp": {
+    "description": "A university replacement day replaces the classes normally scheduled for that weekday.",
+    "placeholders": {}
+  },
+  "universityReplacementMustDiffer": "代替日は別の日を指定してください",
+  "@universityReplacementMustDiffer": {
+    "description": "Choose a different replacement date.",
+    "placeholders": {}
+  },
+  "universityReplacementConflict": "代替先には既に全学設定があります。別の日を選んでください",
+  "@universityReplacementConflict": {
+    "description": "The replacement date already has university settings. Choose another date.",
+    "placeholders": {}
+  },
+  "holidayDataRange": "同梱の祝日データは{arg0}～{arg1}年です。この年度の全祝日を登録するにはデータの更新が必要です。",
+  "@holidayDataRange": {
+    "description": "Bundled Japanese public holiday data covers {arg0}–{arg1}. Update the data to import all holidays for this academic year.",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      }
+    }
+  },
+  "importHolidaysForYear": "{arg0}年度の祝日を休業日に",
+  "@importHolidaysForYear": {
+    "description": "Import Japanese public holidays for academic year {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "importHolidaysConfirmation": "{arg0}日の祝日・振替休日等を登録します。同じIDで登録済みの祝日は重複しません。\n出典: 内閣府（{arg1}～{arg2}年、オフラインデータ）",
+  "@importHolidaysConfirmation": {
+    "description": "Import {arg0} Japanese public holidays, including substitute holidays. Holidays with existing IDs will not be duplicated.\\nSource: Cabinet Office of Japan ({arg1}–{arg2}, offline data)",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      },
+      "arg2": {
+        "type": "Object"
+      }
+    }
+  },
+  "register": "登録",
+  "@register": {
+    "description": "Register",
+    "placeholders": {}
+  },
+  "holidaysImported": "{arg0}日の祝日を登録しました",
+  "@holidaysImported": {
+    "description": "Imported {arg0} public holiday(s).",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      }
+    }
+  },
+  "general": "一般",
+  "@general": {
+    "description": "General",
+    "placeholders": {}
+  },
+  "displaySettings": "表示設定",
+  "@displaySettings": {
+    "description": "Display",
+    "placeholders": {}
+  },
+  "operationSettings": "操作設定",
+  "@operationSettings": {
+    "description": "Controls",
+    "placeholders": {}
+  },
+  "accessibility": "アクセシビリティ",
+  "@accessibility": {
+    "description": "Accessibility",
+    "placeholders": {}
+  },
+  "about": "このアプリについて",
+  "@about": {
+    "description": "About this app",
+    "placeholders": {}
+  },
+  "version": "バージョン: {arg0}",
+  "@version": {
+    "description": "Version: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "author": "制作者",
+  "@author": {
+    "description": "Creator",
+    "placeholders": {}
+  },
+  "name": "名前",
+  "@name": {
+    "description": "Name",
+    "placeholders": {}
+  },
+  "sourceCode": "ソースコード",
+  "@sourceCode": {
+    "description": "Source code",
+    "placeholders": {}
+  },
+  "license": "ライセンス",
+  "@license": {
+    "description": "License",
+    "placeholders": {}
+  },
+  "files": "ファイル",
+  "@files": {
+    "description": "Files",
+    "placeholders": {}
+  },
+  "openUnitable": ".unitableを開く",
+  "@openUnitable": {
+    "description": "Open a .unitable file",
+    "placeholders": {}
+  },
+  "monthNumber": "{arg0}月",
+  "@monthNumber": {
+    "description": "Month name",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "weekStartsOn": "週の開始曜日",
+  "@weekStartsOn": {
+    "description": "First day of the week",
+    "placeholders": {}
+  },
+  "appearance": "配色",
+  "@appearance": {
+    "description": "Appearance",
+    "placeholders": {}
+  },
+  "theme": "テーマ",
+  "@theme": {
+    "description": "Theme",
+    "placeholders": {}
+  },
+  "followSystem": "端末に合わせる",
+  "@followSystem": {
+    "description": "System default",
+    "placeholders": {}
+  },
+  "light": "ライト",
+  "@light": {
+    "description": "Light",
+    "placeholders": {}
+  },
+  "dark": "ダーク",
+  "@dark": {
+    "description": "Dark",
+    "placeholders": {}
+  },
+  "oledBackground": "有機EL用の黒い背景",
+  "@oledBackground": {
+    "description": "Black background for OLED",
+    "placeholders": {}
+  },
+  "timetableDisplay": "時間割の表示",
+  "@timetableDisplay": {
+    "description": "Timetable display",
+    "placeholders": {}
+  },
+  "continuousDisplay": "連続表示",
+  "@continuousDisplay": {
+    "description": "Continuous scrolling",
+    "placeholders": {}
+  },
+  "timeSlotWidth": "コマ幅",
+  "@timeSlotWidth": {
+    "description": "Time slot width",
+    "placeholders": {}
+  },
+  "courseFontSize": "科目名の文字サイズ",
+  "@courseFontSize": {
+    "description": "Course name font size",
+    "placeholders": {}
+  },
+  "roomFontSize": "教室名の文字サイズ",
+  "@roomFontSize": {
+    "description": "Room name font size",
+    "placeholders": {}
+  },
+  "hiddenWeekdays": "時間割に表示しない曜日",
+  "@hiddenWeekdays": {
+    "description": "Weekdays hidden in timetable",
+    "placeholders": {}
+  },
+  "advancedSettings": "詳細設定",
+  "@advancedSettings": {
+    "description": "Advanced settings",
+    "placeholders": {}
+  },
+  "colorPalette": "カラーパレット",
+  "@colorPalette": {
+    "description": "Color palette",
+    "placeholders": {}
+  },
+  "calendarPriority": "年間予定の表示優先順位",
+  "@calendarPriority": {
+    "description": "Calendar display priority",
+    "placeholders": {}
+  },
+  "longPressDuration": "長押しの判定時間",
+  "@longPressDuration": {
+    "description": "Long-press duration",
+    "placeholders": {}
+  },
+  "enableNotifications": "通知を使う",
+  "@enableNotifications": {
+    "description": "Enable notifications",
+    "placeholders": {}
+  },
+  "notificationsUnavailable": "この版では通知を利用できません。",
+  "@notificationsUnavailable": {
+    "description": "Notifications are unavailable in this edition.",
+    "placeholders": {}
+  },
+  "notificationTest": "通知テスト（テストAPK限定）",
+  "@notificationTest": {
+    "description": "Notification test (test APK only)",
+    "placeholders": {}
+  },
+  "notificationTestHelp": "課題確認通知と「課題を追加」を確認できます。予約は最新の1件です。",
+  "@notificationTestHelp": {
+    "description": "Check assignment reminders and the Add assignment action. Only the latest test is scheduled.",
+    "placeholders": {}
+  },
+  "testCourse": "テストする科目",
+  "@testCourse": {
+    "description": "Course to test",
+    "placeholders": {}
+  },
+  "testNow": "今すぐ通知をテスト",
+  "@testNow": {
+    "description": "Test notification now",
+    "placeholders": {}
+  },
+  "testInThirtySeconds": "30秒後に通知をテスト",
+  "@testInThirtySeconds": {
+    "description": "Test notification in 30 seconds",
+    "placeholders": {}
+  },
+  "testInFiveMinutes": "5分後に通知をテスト",
+  "@testInFiveMinutes": {
+    "description": "Test notification in 5 minutes",
+    "placeholders": {}
+  },
+  "allowExactAlarms": "正確な時刻の通知を許可",
+  "@allowExactAlarms": {
+    "description": "Allow exact notifications",
+    "placeholders": {}
+  },
+  "exactAlarmHelp": "端末の「アラームとリマインダー」を許可すると通知の遅れを軽減できます。",
+  "@exactAlarmHelp": {
+    "description": "Allow Alarms and reminders in device settings to reduce notification delays.",
+    "placeholders": {}
+  },
+  "batterySettings": "省電力設定を確認",
+  "@batterySettings": {
+    "description": "Check battery settings",
+    "placeholders": {}
+  },
+  "batterySettingsHelp": "通知が遅れる場合は、アプリ情報からバッテリーの制限を見直してください。",
+  "@batterySettingsHelp": {
+    "description": "If notifications are delayed, review battery restrictions in the app settings on your device.",
+    "placeholders": {}
+  },
+  "notifyRoom": "教室を通知する",
+  "@notifyRoom": {
+    "description": "Classroom reminders",
+    "placeholders": {}
+  },
+  "minutesBeforeClass": "講義開始{arg0}分前",
+  "@minutesBeforeClass": {
+    "description": "{arg0} minutes before class",
+    "placeholders": {
+      "arg0": {
+        "type": "num"
+      }
+    }
+  },
+  "newAssignmentNotifications": "新しい課題の通知タイミング",
+  "@newAssignmentNotifications": {
+    "description": "Default notification timing for new assignments",
+    "placeholders": {}
+  },
+  "holidayDefinition": "休日の定義",
+  "@holidayDefinition": {
+    "description": "Non-teaching day settings",
+    "placeholders": {}
+  },
+  "universityTimezone": "大学のタイムゾーン",
+  "@universityTimezone": {
+    "description": "University time zone",
+    "placeholders": {}
+  },
+  "msixSchedulingHelp": "Windowsで予約の取消・再設定を確実に行うにはMSIX版を使用してください。",
+  "@msixSchedulingHelp": {
+    "description": "Use the MSIX edition on Windows for reliable cancellation and rescheduling of notifications.",
+    "placeholders": {}
+  },
+  "schedulingLimit": "予約は今後1年分のうち直近480件までです。起動・画面復帰時に補充します。",
+  "@schedulingLimit": {
+    "description": "Up to 480 upcoming notifications within the next year are scheduled. The schedule is refreshed when the app starts or resumes.",
+    "placeholders": {}
+  },
+  "reduceMotion": "動きを減らす",
+  "@reduceMotion": {
+    "description": "Reduce motion",
+    "placeholders": {}
+  },
+  "colorVisionSupport": "色覚に配慮した表示",
+  "@colorVisionSupport": {
+    "description": "Color vision support",
+    "placeholders": {}
+  },
+  "strongerText": "文字色を濃くする",
+  "@strongerText": {
+    "description": "Stronger text contrast",
+    "placeholders": {}
+  },
+  "backToSettings": "設定一覧に戻る",
+  "@backToSettings": {
+    "description": "Back to settings list",
+    "placeholders": {}
+  },
+  "durationMilliseconds": "時間（ミリ秒）",
+  "@durationMilliseconds": {
+    "description": "Duration (milliseconds)",
+    "placeholders": {}
+  },
+  "positiveMilliseconds": "1以上のミリ秒を入力してください",
+  "@positiveMilliseconds": {
+    "description": "Enter a duration of at least 1 millisecond.",
+    "placeholders": {}
+  },
+  "widthPixels": "幅（px）",
+  "@widthPixels": {
+    "description": "Width (px)",
+    "placeholders": {}
+  },
+  "slotWidthRange": "40〜600の数値を入力してください",
+  "@slotWidthRange": {
+    "description": "Enter a number from 40 to 600.",
+    "placeholders": {}
+  },
+  "paletteToEdit": "編集する配色",
+  "@paletteToEdit": {
+    "description": "Palette to edit",
+    "placeholders": {}
+  },
+  "teachingPeriodColors": "講義期間の9色",
+  "@teachingPeriodColors": {
+    "description": "Nine teaching period colors",
+    "placeholders": {}
+  },
+  "examPeriodColors": "試験期間の9色",
+  "@examPeriodColors": {
+    "description": "Nine exam period colors",
+    "placeholders": {}
+  },
+  "colorIndex": "{arg0}番目",
+  "@colorIndex": {
+    "description": "Color {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "resetPalette": "この配色を初期値に戻す",
+  "@resetPalette": {
+    "description": "Reset this palette",
+    "placeholders": {}
+  },
+  "resetDefaults": "初期値に戻す",
+  "@resetDefaults": {
+    "description": "Reset to defaults",
+    "placeholders": {}
+  },
+  "specifyRgba": "RGBAで指定",
+  "@specifyRgba": {
+    "description": "Specify RGBA",
+    "placeholders": {}
+  },
+  "rgbaRange": "0〜255の整数を入力してください",
+  "@rgbaRange": {
+    "description": "Enter an integer from 0 to 255.",
+    "placeholders": {}
+  },
+  "fontSize": "文字サイズ",
+  "@fontSize": {
+    "description": "Font size",
+    "placeholders": {}
+  },
+  "fontSizeRange": "8〜36の数値を入力してください",
+  "@fontSizeRange": {
+    "description": "Enter a number from 8 to 36.",
+    "placeholders": {}
+  },
+  "closuresAndHolidays": "休業日・祝日",
+  "@closuresAndHolidays": {
+    "description": "Closures and Japanese public holidays",
+    "placeholders": {}
+  },
+  "noClassDays": "講義がない日",
+  "@noClassDays": {
+    "description": "Days without classes",
+    "placeholders": {}
+  },
+  "onlyDaysWithoutClasses": "講義がない日に限定する",
+  "@onlyDaysWithoutClasses": {
+    "description": "Only on days without classes",
+    "placeholders": {}
+  },
+  "roomNotifications": "教室の通知",
+  "@roomNotifications": {
+    "description": "Classroom reminders",
+    "placeholders": {}
+  },
+  "minutesBeforeStart": "開始何分前",
+  "@minutesBeforeStart": {
+    "description": "Minutes before class",
+    "placeholders": {}
+  },
+  "nonNegativeMinutes": "0以上の分数を入力してください",
+  "@nonNegativeMinutes": {
+    "description": "Enter 0 or more minutes.",
+    "placeholders": {}
+  },
+  "searchRegion": "地域を検索",
+  "@searchRegion": {
+    "description": "Search region",
+    "placeholders": {}
+  },
+  "notificationPermissionHelp": "通知の許可が必要です。端末の設定を確認してください。",
+  "@notificationPermissionHelp": {
+    "description": "Notification permission is required. Check your device settings.",
+    "placeholders": {}
+  },
+  "start": "開始",
+  "@start": {
+    "description": "Start",
+    "placeholders": {}
+  },
+  "end": "終了",
+  "@end": {
+    "description": "End",
+    "placeholders": {}
+  },
+  "changeStartTime": "開始時刻を変更",
+  "@changeStartTime": {
+    "description": "Change start time",
+    "placeholders": {}
+  },
+  "changeEndTime": "終了時刻を変更",
+  "@changeEndTime": {
+    "description": "Change end time",
+    "placeholders": {}
+  },
+  "deleteTimeSlot": "コマを削除",
+  "@deleteTimeSlot": {
+    "description": "Delete time slot",
+    "placeholders": {}
+  },
+  "minutesValue": "{arg0}分",
+  "@minutesValue": {
+    "description": "{arg0} min",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteSlotNumber": "{arg0}限を削除",
+  "@deleteSlotNumber": {
+    "description": "Delete period {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "slotTimeTitle": "{arg0}限の時間",
+  "@slotTimeTitle": {
+    "description": "Period {arg0} times",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "startTimeValue": "開始 {arg0}",
+  "@startTimeValue": {
+    "description": "Start {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "endTimeValue": "終了 {arg0}",
+  "@endTimeValue": {
+    "description": "End {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "endTimeAfterStart": "終了時刻は開始時刻より後にしてください",
+  "@endTimeAfterStart": {
+    "description": "The end time must be after the start time.",
+    "placeholders": {}
+  },
+  "slotTimeHelp": "{arg0}限の{arg1}時刻",
+  "@slotTimeHelp": {
+    "description": "Period {arg0}: {arg1} time",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      },
+      "arg1": {
+        "type": "Object"
+      }
+    }
+  },
+  "timeSlotInUse": "このコマを使う講義があります。先に授業を変更してください。",
+  "@timeSlotInUse": {
+    "description": "A class uses this time slot. Change the class first.",
+    "placeholders": {}
+  },
+  "exportFolderOccupied": "書き出し先にuniversity.unitableがあります。空のフォルダーを選んでください。",
+  "@exportFolderOccupied": {
+    "description": "The destination already contains university.unitable. Choose an empty folder.",
+    "placeholders": {}
+  },
+  "chooseAnotherFilename": "既存のファイルは上書きしません。別の名前を選んでください。",
+  "@chooseAnotherFilename": {
+    "description": "Existing files will not be overwritten. Choose another name.",
+    "placeholders": {}
+  },
+  "databaseExported": "データベースのコピーを書き出しました",
+  "@databaseExported": {
+    "description": "Exported a copy of the database.",
+    "placeholders": {}
+  },
+  "chooseDatabase": "使う.unitableファイルを指定してください。",
+  "@chooseDatabase": {
+    "description": "Choose the .unitable file to use.",
+    "placeholders": {}
+  },
+  "notRegistered": "未登録",
+  "@notRegistered": {
+    "description": "Not set",
+    "placeholders": {}
+  },
+  "scheduledThrough": "・{arg0}まで",
+  "@scheduledThrough": {
+    "description": "· through {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "Object"
+      }
+    }
+  },
+  "scheduleRefillHelp": "（起動・画面復帰時に予約を補充）",
+  "@scheduleRefillHelp": {
+    "description": "(refreshed when the app starts or resumes)",
+    "placeholders": {}
+  },
+  "inexactAlarmWarning": "・正確な時刻の通知が未許可のため遅れる場合があります",
+  "@inexactAlarmWarning": {
+    "description": "· notifications may be delayed because exact alarms are not permitted",
+    "placeholders": {}
+  },
+  "cancelledSuffix": "・休講",
+  "@cancelledSuffix": {
+    "description": "· Cancelled",
+    "placeholders": {}
+  },
+  "replacement": "振替",
+  "@replacement": {
+    "description": "Replacement",
+    "placeholders": {}
+  },
+  "versionUnavailable": "取得できません",
+  "@versionUnavailable": {
+    "description": "Unavailable",
+    "placeholders": {}
+  },
+  "language": "言語",
+  "languageJapanese": "日本語",
+  "languageEnglish": "English",
+  "namedExamPeriod": "{name}試験期間",
+  "@namedExamPeriod": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "storagePickerBusy": "ファイル・フォルダーを選択中です。",
+  "storageEmptyFile": "ファイルが空です。",
+  "storageVerificationFailed": "書き込んだデータを検証できません。",
+  "storageFolderPermission": "フォルダーへの読み書き権限がありません。再度選択してください。",
+  "storageRecoveryFailed": "前回の保存ファイルを復元できません。",
+  "storageMissingDatabase": "university.unitableがありません。",
+  "storageEmptyDatabase": "データベースが空です。",
+  "storageNoData": "保存するデータがありません。",
+  "storageCleanupFailed": "以前のコピーを整理できません。",
+  "storageRenameUnsupported": "このフォルダーは安全な更新に必要なファイル名変更に対応していません。別のローカルフォルダーを選んでください。",
+  "storageSaveFailed": "データベースの保存を完了できません。",
+  "storageSelectFile": ".unitableファイルを指定してください。",
+  "storageFilePermission": "読み書きできるファイルを指定してください。",
+  "fullWeekdayName": "{arg0}曜日",
+  "@fullWeekdayName": {
+    "description": "Full weekday name for settings and descriptions",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "examName": "科目名",
+  "@examName": {
+    "description": "Name of the exam in the exam editor"
+  },
+  "academicYearStartsIn": "年度の開始月",
+  "academicYearSingle": "{year}年度",
+  "academicYearRange": "{startYear}年度",
+  "@academicYearStartsIn": {
+    "description": "Label for the academic year start month dropdown"
+  },
+  "@academicYearSingle": {
+    "description": "An academic year contained in one calendar year",
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "@academicYearRange": {
+    "description": "An academic year spanning two calendar years. Japanese displays only the starting year; English displays both.",
+    "placeholders": {
+      "startYear": {
+        "type": "int"
+      },
+      "endYear": {
+        "type": "int"
+      }
+    }
+  },
+  "universitySettings": "年度・授業時間",
+  "@universitySettings": {
+    "description": "University settings section for academic year and class times. Keep the existing Japanese heading."
+  }
+}

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">UniTable</string>
+    <string name="app_name_notification_test">UniTable (notification test)</string>
+</resources>

@@ -2,34 +2,36 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'package:timezone/data/latest.dart' as zones;
-import 'package:timezone/timezone.dart' as tz;
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide ContextAction;
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:path/path.dart' as p;
+import 'package:timezone/data/latest.dart' as zones;
+import 'package:timezone/timezone.dart' as tz;
 import '../app_info.dart';
 import '../data/database.dart';
-import '../domain/schedule.dart';
-import '../domain/periods.dart';
 import '../domain/course_groups.dart';
 import '../domain/deadline_choice.dart';
+import '../domain/periods.dart';
+import '../domain/schedule.dart';
+import '../l10n/strings.dart';
+import '../services/notifications.dart';
+import 'accessibility.dart';
+import 'annual_calendar.dart';
 import 'app_palette.dart';
 import 'appearance.dart';
-import 'selection_check.dart';
-import 'accessibility.dart';
-import 'status_marks.dart';
-import 'color_palette.dart';
-import 'timed_long_press.dart';
-import '../services/notifications.dart';
-import 'editors.dart';
-import 'dialogs.dart';
-import 'annual_calendar.dart';
 import 'calendar_style.dart';
-import 'timetable_scrolling.dart';
+import 'color_palette.dart';
 import 'context_actions.dart';
+import 'dialogs.dart';
+import 'editors.dart';
+import 'selection_check.dart';
+import 'status_marks.dart';
+import 'timed_long_press.dart';
+import 'timetable_scrolling.dart';
+import 'navigation_destination.dart';
 
 class Home extends StatefulWidget {
   final Storage storage;
@@ -69,6 +71,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           .toSet();
   List<int> get visibleWeekdays =>
       orderedWeekdays.where((day) => !hiddenWeekdays.contains(day)).toList();
+  String get defaultCourseFontSize => desktop ? '18' : '12';
+  String get defaultRoomFontSize => desktop ? '12' : '11';
   double get timetableGutter => desktop ? 36 : 30;
   double get cellMargin => desktop ? 3 : 1;
   String selectedTerm = '';
@@ -174,14 +178,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final course = data.find('courses', notificationTestCourse) ??
         data.rows('courses').firstOrNull;
     if (course == null) {
-      message('通知テストには講義を1件以上登録してください。');
+      message(strings.testNeedsCourse);
       return;
     }
     setState(() => sendingTestNotification = true);
     try {
       if (data.setting('notifications', '0') != '1') {
         if (!await notices.requestPermission()) {
-          message('通知の許可が必要です。');
+          message(strings.notificationPermissionRequired);
           return;
         }
         await setting('notifications', '1');
@@ -189,11 +193,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       await notificationQueue;
       if (!mounted) return;
       final sent = await notices.sendTestNotification(data, course, delay: delay);
-      message(!sent ? '通知の許可が必要です。' : delay == Duration.zero
-          ? 'テスト通知を送信しました。'
-          : '${delay.inSeconds}秒後のテスト通知を予約しました。画面を閉じて確認できます。');
+      message(!sent ? strings.notificationPermissionRequired
+            : delay == Duration.zero
+          ? strings.testNotificationSent
+            : strings.testNotificationScheduled(delay.inSeconds),
+      );
     } catch (e) {
-      message('通知テストに失敗しました: $e');
+      message(strings.testNotificationFailed(e));
     } finally {
       if (mounted) setState(() => sendingTestNotification = false);
     }
@@ -203,12 +209,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       if (data.find('courses', courseId) == null) {
-        message('通知の講義が見つかりません。');
+        message(strings.notificationCourseMissing);
         return;
       }
       if (editingPage) {
         pendingNotificationCourse = courseId;
-        message('編集中の変更を保存または破棄すると、課題追加画面を開きます。');
+        message(strings.finishEditingToAddAssignment);
         return;
       }
       if (notificationTaskOpen) return;
@@ -221,6 +227,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       }
     });
     WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Locale? notificationLocale;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Localizations.localeOf(context);
+    if (notificationLocale != null && notificationLocale != locale) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) refreshNotifications();
+      });
+    }
+    notificationLocale = locale;
   }
 
   @override
@@ -270,7 +290,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   Future<void> commit(void Function() change) async {
-    if (saving) throw StateError('保存中です。少し待ってからお試しください。');
+    if (saving) throw StateError(strings.saveInProgress);
     saving = true;
     try {
       if (editDraft != null) {
@@ -282,7 +302,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       try {
         await widget.storage.synchronize();
       } catch (_) {
-        message('指定フォルダーに保存できませんでした。設定画面から再試行できます。');
+        message(strings.retrySaveInSettings);
       }
       refreshNotifications();
     } finally {
@@ -303,7 +323,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       });
   Future<void> setting(String id, String value) =>
       put('settings', {'id': id, 'value': value});
-  static const titles = ['時間割', '課題', '年間予定', '設定'];
+  List<String> get titles => [
+    strings.timetable,
+    strings.assignments,
+    strings.annualCalendar,
+    strings.settings,
+  ];
   static const icons = [
     Icons.view_week_outlined,
     Icons.check_circle_outline,
@@ -315,7 +340,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       FilledButton.icon(
           onPressed: saving ? null : () => change(!value),
           icon: Icon(value ? Icons.check : Icons.edit_outlined, size: 18),
-          label: Text(value ? '保存' : '編集'));
+          label: Text(value ? strings.save : strings.edit));
 
   Widget calendarFab() {
     final duration = data.setting('reduce_motion', '0') == '1'
@@ -339,14 +364,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           children: [
                               for (final action
                                   in <(String, IconData, VoidCallback)>[
-                                ('期間を追加', Icons.date_range, selectPeriod),
+                                (strings.addPeriod, Icons.date_range, selectPeriod),
                                 (
-                                  '期間をまとめる',
+                          strings.mergePeriods,
                                   Icons.merge_outlined,
                                   () => mergePeriods()
                                 ),
                                 (
-                                  '祝日を休日にする',
+                          strings.importHolidays,
                                   Icons.event_available_outlined,
                                   () => importHolidays()
                                 ),
@@ -365,7 +390,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             ]))),
           FloatingActionButton(
               heroTag: 'annual-actions',
-              tooltip: calendarMenuOpen ? '閉じる' : '年間予定の操作',
+              tooltip: calendarMenuOpen ? strings.close : strings.calendarActions,
               onPressed: () =>
                   setState(() => calendarMenuOpen = !calendarMenuOpen),
               child: AnimatedRotation(
@@ -375,42 +400,47 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       shape: 10,
                       size: 24,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      label: calendarMenuOpen ? '閉じる' : '追加'))),
+                      label: calendarMenuOpen ? strings.close : strings.add,
+            ))),
         ]);
   }
 
   List<ContextAction> get pageActions => [
         if (page == 0) ...[
-          ContextAction(timetableEditing ? '閲覧モードに切り替え' : '編集モードに切り替え',
+          ContextAction(timetableEditing ? strings.switchToView : strings.switchToEdit,
               () => startTimetableEditing(!timetableEditing)),
-          ContextAction('講義を登録', () => editMeeting()),
-          ContextAction('単発講義を登録', () => editMeeting(single: true)),
-          ContextAction('前の週', () => setState(() => week = shiftDay(week, -7))),
-          ContextAction('次の週', () => setState(() => week = shiftDay(week, 7))),
+          ContextAction(strings.registerCourse, () => editMeeting()),
           ContextAction(
-              '今週',
+        strings.registerOneOffClass, () => editMeeting(single: true)),
+          ContextAction(
+        strings.previousWeek, () => setState(() => week = shiftDay(week, -7))),
+          ContextAction(
+        strings.nextWeek, () => setState(() => week = shiftDay(week, 7))),
+          ContextAction(
+        strings.thisWeek,
               week == beginningOfWeek(DateTime.now())
                   ? null
                   : () =>
                       setState(() => week = beginningOfWeek(DateTime.now()))),
         ],
-        if (page == 1) ContextAction('課題を追加', () => editTask()),
+        if (page == 1) ContextAction(strings.addAssignment, () => editTask()),
         if (page == 2) ...[
-          ContextAction(calendarEditing ? '閲覧モードに切り替え' : '編集モードに切り替え',
+          ContextAction(calendarEditing ? strings.switchToView : strings.switchToEdit,
               () => setCalendarEditing(!calendarEditing)),
-          ContextAction('期間を追加', selectPeriod),
-          ContextAction('祝日を休日にする', importHolidays),
-          ContextAction('前の年度', () => setState(() => year--)),
-          ContextAction('次の年度', () => setState(() => year++)),
+          ContextAction(strings.addPeriod, selectPeriod),
+          ContextAction(strings.importHolidays, importHolidays),
+          ContextAction(strings.previousYear, () => setState(() => year--)),
+          ContextAction(strings.nextYear, () => setState(() => year++)),
         ],
         if (page == 3) ...[
-          ContextAction('新しい.unitableを作成', () => openDatabase(create: true)),
-          ContextAction('コピーを書き出す', exportDatabase),
-          ContextAction('データベースを開く', openDatabase),
-          ContextAction('コマを追加', () => editSlot()),
-          ContextAction('教室の通知タイミングを変更', canNotify ? editLeadTiming : null),
+          ContextAction(strings.createDatabase, () => openDatabase(create: true)),
+          ContextAction(strings.exportCopy, exportDatabase),
+          ContextAction(strings.openDatabase, openDatabase),
+          ContextAction(strings.addTimeSlot, () => editSlot()),
           ContextAction(
-              '教室通知をオン／オフ',
+        strings.changeRoomNoticeTiming, canNotify ? editLeadTiming : null),
+          ContextAction(
+        strings.toggleRoomNotices,
               canNotify
                   ? () => setting(
                       'lead_minutes',
@@ -418,12 +448,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           ? data.setting('last_lead_minutes', '10')
                           : '-1')
                   : null),
-          ContextAction('課題の通知設定', editGlobalRules),
-          ContextAction('大学のタイムゾーン設定', editTimezone),
+          ContextAction(strings.assignmentNotificationSettings, editGlobalRules),
+          ContextAction(strings.universityTimezoneSettings, editTimezone),
           ContextAction(
               data.setting('notifications', '0') == '1'
-                  ? '通知をオフにする'
-                  : '通知をオンにする',
+                  ? strings.turnNotificationsOff
+            : strings.turnNotificationsOn,
               canNotify
                   ? () => toggleNotifications(
                       data.setting('notifications', '0') != '1')
@@ -512,15 +542,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final result = await showAppDialog<bool>(
         context: context,
         builder: (ctx) =>
-            AlertDialog(title: const Text('変更を保存しますか？'), actions: [
+            AlertDialog(title: Text(strings.saveChanges), actions: [
               FilledButton(
                   style: FilledButton.styleFrom(
                       backgroundColor: Theme.of(ctx).colorScheme.error),
                   onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('編集を破棄')),
+                  child: Text(strings.discardChanges)),
               FilledButton(
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('保存')),
+                  child: Text(strings.save)),
             ]));
     askingBack = false;
     if (result != null && mounted) {
@@ -569,9 +599,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Widget navigation() =>
       ListView(padding: const EdgeInsets.symmetric(vertical: 12), children: [
-        const Padding(
+      Padding(
             padding: EdgeInsets.all(16),
-            child: Text('うに時間割', style: TextStyle(fontSize: 20))),
+            child: Text(strings.appName, style: TextStyle(fontSize: 20))),
         for (var i = 0; i < titles.length; i++)
           ListTile(
               selected: page == i,
@@ -586,7 +616,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         final header = Row(children: [
           if (editingPage)
             IconButton(
-                tooltip: '編集から戻る',
+                tooltip: strings.exitEditing,
                 onPressed: leaveEditing,
                 icon: const Icon(Icons.arrow_back)),
           if (desktop && !openMenu && !hideNavigation)
@@ -631,7 +661,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   : null,
               floatingActionButton: page == 1
                   ? FloatingActionButton(
-                      tooltip: '課題を追加',
+                      tooltip: strings.addAssignment,
                       onPressed: () => editTask(),
                       child: const Icon(Icons.add))
                   : page == 2 && calendarEditing
@@ -664,8 +694,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                         child: header)),
                                 if (widget.storage.pendingSyncError != null)
                                   MaterialBanner(
-                                      content:
-                                          const Text('指定フォルダーに未保存の変更があります。'),
+                                      content: Text(strings.unsavedFolderChanges),
                                       actions: [
                                         TextButton(
                                             onPressed: () async {
@@ -677,7 +706,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                                 message(e.toString());
                                               }
                                             },
-                                            child: const Text('再試行'))
+                                            child: Text(strings.retry))
                                       ]),
                                 Expanded(
                                     child: Padding(
@@ -708,7 +737,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       onDestinationSelected: selectPage,
                       destinations: [
                           for (var i = 0; i < titles.length; i++)
-                            NavigationDestination(
+                            CenteredNavigationDestination(
                                 icon: Icon(icons[i]),
                                 label: titles[i],
                                 tooltip: ''),
@@ -720,13 +749,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final confirmed = await showAppDialog<bool>(
         context: context,
         barrierDismissible: true,
-        builder: (ctx) => AlertDialog(title: Text('$nameを削除しますか？'), actions: [
+        builder: (ctx) => AlertDialog(title: Text(strings.deleteNamed(name)), actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('キャンセル')),
+                  child: Text(strings.cancel)),
               TextButton(
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('削除'))
+                  child: Text(strings.delete))
             ]));
     if (confirmed == true) await remove(table, row);
   }
@@ -756,21 +785,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           meetingTerm(m) == editingTerm)
       .toList();
   Future<void> deleteCellMeetings(List<DbRow> meetings,
-      {String title = 'この時間の授業を削除しますか？'}) async {
+      {String? title}) async {
     if (meetings.length == 1) {
-      await confirmRemove('meetings', meetings.first, '授業');
+      await confirmRemove('meetings', meetings.first, strings.classLabel);
       return;
     }
     final approved = await showAppDialog<bool>(
         context: context,
         barrierDismissible: true,
-        builder: (ctx) => AlertDialog(title: Text(title), actions: [
+        builder: (ctx) => AlertDialog(title: Text(title ?? strings.deleteThisClass), actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('キャンセル')),
+                  child: Text(strings.cancel)),
               FilledButton(
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('削除'))
+                  child: Text(strings.delete))
             ]));
     if (approved == true) {
       await commit(() {
@@ -797,7 +826,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         children: [
           if (timetablePeriods(data).isNotEmpty)
             choice(
-                '編集する期間',
+            strings.choosePeriodToEdit,
                 selectedExam ?? editingTerm,
                 {
                   for (final period in timetablePeriods(data))
@@ -820,17 +849,19 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           if (selectedExam != null)
             examEditor()
           else if (editingTerm.isEmpty)
-            empty('講義期間を登録してください', '年間予定で講義期間を登録すると、時間割を編集できます。',
-                label: '年間予定へ', action: () => setState(() => page = 2))
+            empty(
+            strings.teachingPeriodRequired,
+            strings.teachingPeriodHelp,
+                label: strings.goToCalendar, action: () => setState(() => page = 2))
           else
             lectureEditorGrid(),
           const SizedBox(height: 18),
-          section('単発講義', [
+          section(strings.oneOffClass, [
             for (final group in intensiveGroups) intensiveEntry(group),
             TextButton.icon(
                 onPressed: () => editMeeting(single: true),
                 icon: const Icon(Icons.add),
-                label: const Text('単発講義を追加'))
+                label: Text(strings.addOneOffClass))
           ])
         ]);
   }
@@ -864,8 +895,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             for (final day in visibleWeekdays)
                               Expanded(
                                   child: Center(
-                                      child: Text('${weekdays[day - 1]}曜日')))
-                          ])),
+                                      child: Text(
+                                    strings.weekdayName(weekdays[day - 1]),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                       for (final slot in data.slots)
                         SizedBox(
                             height: height,
@@ -947,16 +984,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                             actions: [
                                               ContextAction(
                                                   meeting == null
-                                                      ? '試験を登録'
-                                                      : '試験を編集',
+                                                      ? strings.addExam
+                                            : strings.editExam,
                                                   edit),
                                               if (meeting != null)
                                                 ContextAction(
-                                                    '試験を削除',
+                                          strings.deleteExam,
                                                     () => confirmRemove(
                                                         'meetings',
                                                         meeting,
-                                                        '試験'))
+                                            strings.exam,
+                                          ))
                                             ],
                                             child: timetableEditTile(
                                                 color: appColor(
@@ -988,20 +1026,24 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         teacher = text(course?['teacher']);
     await editForm(
         context,
-        row == null ? '試験を登録' : '試験を編集',
+        row == null ? strings.addExam : strings.editExam,
         (_, set) => Column(children: [
               Text(
-                  '${dayKey(date)}・${data.find('slots', slotId)?['position']}限'),
+            strings.dayAndSlot(
+              dayKey(date),
+              data.find('slots', slotId)?['position'],
+            ),
+          ),
               HistoryField(
                   controller: name,
-                  label: '科目名',
+                  label: strings.examName,
                   history: history('name'),
                   required: true),
               HistoryField(
-                  controller: room, label: '教室名', history: history('room')),
+                  controller: room, label: strings.roomName, history: history('room')),
               HistoryField(
                   controller: teacher,
-                  label: '教員名',
+                  label: strings.instructorName,
                   history: history('teacher')),
             ]), () async {
       if (data.rows('meetings').any((m) =>
@@ -1009,7 +1051,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           m['exam_period_id'] == periodId &&
           m['once_date'] == dayKey(date) &&
           m['slot_id'] == slotId)) {
-        throw const FormatException('この時限には試験が登録されています');
+        throw FormatException(strings.examSlotOccupied);
       }
       final courseId = course?['id'] as String? ?? newId();
       await commit(() {
@@ -1046,18 +1088,19 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     return ContextActions(
         desktop: desktop,
         actions: meetings.isEmpty
-            ? [ContextAction('講義を追加', add)]
+            ? [ContextAction(strings.addCourse, add)]
             : [
                 for (final m in meetings)
-                  ContextAction('授業を編集', () => editMeeting(row: m)),
-                ContextAction('授業を削除', () => deleteCellMeetings(meetings))
+                  ContextAction(strings.editClass, () => editMeeting(row: m)),
+                ContextAction(
+                strings.deleteClass, () => deleteCellMeetings(meetings))
               ],
         child: Padding(
             key: ValueKey('editor-${slot['id']}-$day'),
             padding: EdgeInsets.all(cellMargin),
             child: meetings.isEmpty
                 ? Tooltip(
-                    message: '講義を登録',
+                    message: strings.registerCourse,
                     child: timetableEditTile(
                         color: appColor(context, data, 'lecture'), onTap: add))
                 : Column(
@@ -1124,10 +1167,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     return ContextActions(
         desktop: desktop,
         actions: [
-          ContextAction('実施日を編集', () => showIntensiveGroup(group)),
-          ContextAction('講義を編集', () => editCourse(course)),
-          ContextAction('まとめて削除',
-              () => deleteCellMeetings(group, title: 'この講義の実施日をまとめて削除しますか？')),
+          ContextAction(strings.editClassDate, () => showIntensiveGroup(group)),
+          ContextAction(strings.editCourse, () => editCourse(course)),
+          ContextAction(
+          strings.deleteAll,
+              () => deleteCellMeetings(group, title: strings.deleteAllClassDates)),
         ],
         child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1152,7 +1196,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   .toList()
                 ..sort();
               return Scaffold(
-                appBar: AppBar(title: const Text('実施日')),
+                appBar: AppBar(title: Text(strings.classDate)),
                 body: ListView(padding: const EdgeInsets.all(16), children: [
                   ListTile(
                       title: Text(course['name'] as String),
@@ -1183,7 +1227,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         padding: const EdgeInsets.all(16),
                         child: FilledButton.icon(
                             icon: const Icon(Icons.add),
-                            label: const Text('実施日を追加'),
+                            label: Text(strings.addClassDate),
                             onPressed: () async {
                               await editSingleDate(courseId);
                               if (ctx.mounted) set(() {});
@@ -1194,7 +1238,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> editSingleDate(String courseId, {String? oldDate}) async {
     if (data.slots.isEmpty) {
-      message('設定で授業時間を登録してください');
+      message(strings.configureClassTimes);
       return;
     }
     final previous = data
@@ -1207,13 +1251,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         : previous.map((m) => m['slot_id'] as String).toSet();
     await editForm(
         context,
-        oldDate == null ? '実施日を追加' : '実施日を編集',
+        oldDate == null ? strings.addClassDate : strings.editClassDate,
         (ctx, set) => Column(children: [
-              dateField(ctx, date, '実施日'),
+              dateField(ctx, date, strings.classDate),
               Wrap(spacing: 6, runSpacing: 6, children: [
                 for (final slot in data.slots)
                   SelectionCheck(
-                      label: Text('${slot['position']}限'),
+                      label: Text(strings.timeSlotNumber(slot['position'])),
                       selected: slots.contains(slot['id']),
                       onSelected: (selected) => set(() {
                             selected
@@ -1222,12 +1266,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           })),
               ]),
             ]), () async {
-      if (slots.isEmpty) throw const FormatException('時限を選んでください');
+      if (slots.isEmpty) throw FormatException(strings.timeSlotRequired);
       if (data.rows('meetings').any((m) =>
           !previous.any((old) => old['id'] == m['id']) &&
           m['once_date'] == date.text &&
           slots.contains(m['slot_id']))) {
-        throw const FormatException('同じ実施日・時限に授業があります');
+        throw FormatException(strings.classDateConflict);
       }
       await commit(() {
         for (final old
@@ -1266,13 +1310,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     Map<String, dynamic>? result;
     await editForm(
         context,
-        '実施日と時限',
+      strings.datesAndSlots,
         (ctx, set) => Column(children: [
-              dateField(ctx, value, '実施日'),
+              dateField(ctx, value, strings.classDate),
               Wrap(spacing: 6, runSpacing: 6, children: [
                 for (final slot in data.slots)
                   SelectionCheck(
-                      label: Text('${slot['position']}限'),
+                      label: Text(strings.timeSlotNumber(slot['position'])),
                       selected: slots.contains(slot['id']),
                       onSelected: (v) => set(() {
                             v
@@ -1281,7 +1325,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           })),
               ]),
             ]), () async {
-      if (slots.isEmpty) throw const FormatException('時限を選んでください');
+      if (slots.isEmpty) throw FormatException(strings.timeSlotRequired);
       result = {'date': value.text, 'slots': slots};
       return true;
     });
@@ -1294,11 +1338,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     return ContextActions(
         desktop: desktop,
         actions: [
-          ContextAction('授業を編集', () => editMeeting(row: meeting)),
-          ContextAction('講義を編集', () => editCourse(course)),
-          ContextAction('講義の詳細・メモ', () => showCourse(course)),
+          ContextAction(strings.editClass, () => editMeeting(row: meeting)),
+          ContextAction(strings.editCourse, () => editCourse(course)),
+          ContextAction(strings.courseDetails, () => showCourse(course)),
           ContextAction(
-              '授業を削除', () => confirmRemove('meetings', meeting, '授業')),
+          strings.deleteClass, () => confirmRemove('meetings', meeting, strings.classLabel)),
         ],
         child: timetableEditTile(
             color: appColor(context, data, 'lecture'),
@@ -1308,7 +1352,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   Widget empty(String title, String detail,
-          {VoidCallback? action, String label = '追加する'}) =>
+          {VoidCallback? action, String? label,
+  }) =>
       Center(
           child: Padding(
               padding: const EdgeInsets.all(20),
@@ -1325,7 +1370,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   Padding(
                       padding: const EdgeInsets.only(top: 16),
                       child:
-                          OutlinedButton(onPressed: action, child: Text(label)))
+                          OutlinedButton(onPressed: action, child: Text(label ?? strings.addItem)))
               ])));
   Widget section(String title, List<Widget> children) => Padding(
       padding: const EdgeInsets.only(bottom: 22),
@@ -1367,21 +1412,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             IconButton(
-                tooltip: '前の週',
+                tooltip: strings.previousWeek,
                 onPressed: () => change(shiftDay(value, -7)),
                 icon: const Icon(Icons.chevron_left)),
             Text(MediaQuery.sizeOf(context).width < 650
                 ? '${value.year} ${value.month}/${value.day}–${shiftDay(value, 6).month}/${shiftDay(value, 6).day}'
                 : '${dayKey(value)} ～ ${dayKey(shiftDay(value, 6))}'),
             IconButton(
-                tooltip: '次の週',
+                tooltip: strings.nextWeek,
                 onPressed: () => change(shiftDay(value, 7)),
                 icon: const Icon(Icons.chevron_right)),
             TextButton(
                 onPressed: value == beginningOfWeek(DateTime.now())
                     ? null
                     : () => change(beginningOfWeek(DateTime.now())),
-                child: const Text('今週'))
+                child: Text(strings.thisWeek))
           ]);
   Widget slotLabel(DbRow slot, {bool times = true}) => Center(
           child: Column(
@@ -1406,8 +1451,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       actions: picking
           ? []
           : [
-              ContextAction('この日の変更', () => editDay(date)),
-              ContextAction('提出する課題', () => showDay(date, tasksOnly: true))
+              ContextAction(strings.dayChanges, () => editDay(date)),
+              ContextAction(
+              strings.assignmentsDue, () => showDay(date, tasksOnly: true))
             ],
       child: SizedBox(
           width: double.infinity,
@@ -1452,8 +1498,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         SizedBox(height: desktop ? 12 : 4),
         Expanded(
             child: visibleWeekdays.isEmpty
-                ? empty('表示する曜日がありません', '設定で表示する曜日を選んでください。',
-                    label: '設定へ', action: () => setState(() => page = 3))
+                ? empty(
+                strings.noVisibleWeekdays,
+                strings.chooseVisibleWeekdays,
+                    label: strings.goToSettings, action: () => setState(() => page = 3))
                 : data.setting('timetable_scroll', 'week') == 'smooth'
                     ? smoothTimetable()
                     : weeklyTimetable()),
@@ -1485,12 +1533,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               11)
           .fold<double>(0, max),
       MediaQuery.textScalerOf(context).scale(
-                  double.tryParse(data.setting('course_font_size', '18')) ??
-                      18) *
+                  double.tryParse(data.setting(
+                          'course_font_size', defaultCourseFontSize)) ??
+                      double.parse(defaultCourseFontSize)) *
               1.3 *
               3 +
           MediaQuery.textScalerOf(context).scale(
-                  double.tryParse(data.setting('room_font_size', '12')) ?? 12) *
+                  double.tryParse(data.setting(
+                          'room_font_size', defaultRoomFontSize)) ??
+                      double.parse(defaultRoomFontSize)) *
               1.3 +
           24 +
           cellMargin * 2);
@@ -1604,9 +1655,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             Expanded(
                 child:
                     dayColumn(date, rowHeight, pick: pick, courseId: courseId)),
-        ])
-      ])),
-    ]);
+        ],
+              ),
+    ],
+          ),
+        ),
+      ],
+    );
   }
 
   String holidayName(DateTime date) {
@@ -1619,7 +1674,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         .where((e) => e['kind'] == 'holiday' && engine.contains(e, date))
         .firstOrNull;
     return (event?['name'] as String? ?? '').isEmpty
-        ? '休業日'
+        ? strings.closure
         : event!['name'] as String;
   }
 
@@ -1633,8 +1688,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       return ContextActions(
           desktop: desktop,
           actions: [
-            ContextAction('この日の変更', () => editDay(date)),
-            ContextAction('この日の予定', () => showDay(date))
+            ContextAction(strings.dayChanges, () => editDay(date)),
+            ContextAction(strings.daySchedule, () => showDay(date))
           ],
           child: InkWell(
               onTap: () => showDay(date),
@@ -1690,9 +1745,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 desktop: desktop,
                 actions: pick == null
                     ? [
-                        ContextAction('この日の変更', () => editDay(date)),
+                        ContextAction(strings.dayChanges, () => editDay(date)),
                         ContextAction(
-                            '講義を追加',
+                        strings.addCourse,
                             () => editMeeting(
                                 day: date, slotId: slot['id'] as String))
                       ]
@@ -1742,13 +1797,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Widget sessionCard(Session session, {bool past = false}) => ContextActions(
       desktop: desktop,
       actions: [
-        ContextAction('講義の詳細・メモ', () => showSession(session)),
-        ContextAction('この日の変更', () => editSession(session)),
-        ContextAction('曜日と時間を変更', () => editMeeting(row: session.meeting)),
-        ContextAction('講義を編集', () => editCourse(session.course)),
-        ContextAction('課題を追加', () => editTask(session: session)),
+        ContextAction(strings.courseDetails, () => showSession(session)),
+        ContextAction(strings.dayChanges, () => editSession(session)),
         ContextAction(
-            '授業を削除', () => confirmRemove('meetings', session.meeting, '授業'))
+        strings.changeDayAndTime, () => editMeeting(row: session.meeting)),
+        ContextAction(strings.editCourse, () => editCourse(session.course)),
+        ContextAction(strings.addAssignment, () => editTask(session: session)),
+        ContextAction(
+        strings.deleteClass, () => confirmRemove('meetings', session.meeting, strings.classLabel))
       ],
       child: InkWell(
           onTap: () => showSession(session),
@@ -1767,8 +1823,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                       fontSize: double.tryParse(data.setting(
-                                              'course_font_size', '18')) ??
-                                          18,
+                                              'course_font_size',
+                                              defaultCourseFontSize)) ??
+                                          double.parse(defaultCourseFontSize),
                                       height: 1.3,
                                       color: past
                                           ? mutedText(context,
@@ -1779,15 +1836,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                       decoration: session.cancelled
                                           ? TextDecoration.lineThrough
                                           : null)))),
-                      Text('${session.room}${session.cancelled ? '・休講' : ''}',
+                      Text(
+                  '${session.room}${session.cancelled ? strings.cancelledSuffix : ''}',
                           textAlign: TextAlign.center,
                           softWrap: true,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: double.tryParse(
-                                      data.setting('room_font_size', '12')) ??
-                                  12,
+                                      data.setting('room_font_size',
+                                          defaultRoomFontSize)) ??
+                                  double.parse(defaultRoomFontSize),
                               height: 1.3,
                               color: past
                                   ? mutedText(context,
@@ -1805,12 +1864,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           shape: 6,
                           filled: false,
                           color: Theme.of(context).colorScheme.onSurface,
-                          label: '代替日'),
+                          label: strings.replacementDay,
+                    ),
                     if (session.meeting['once_date'] != null &&
                         session.meeting['exam_period_id'] == null)
                       StatusMark(
                           color: Theme.of(context).colorScheme.onSurface,
-                          label: '単発講義'),
+                          label: strings.oneOffClass,
+                    ),
                   ])),
           ])));
 
@@ -1831,13 +1892,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             .firstOrNull;
     return [
       if ((course?['name'] as String? ?? '').isNotEmpty)
-        '講義名: ${course!['name']}',
+        strings.courseNameValue(course!['name']),
       if ((task['destination'] as String? ?? '').isNotEmpty)
-        '提出先: ${task['destination']}',
+        strings.destinationValue(task['destination']),
       if (related != null)
-        '該当の講義: ${deadlineHint(DeadlineChoice.fromSession(related))}',
+        strings.relatedCourseValue(
+          deadlineHint(DeadlineChoice.fromSession(related)),
+        ),
       if (due != null)
-        '提出時間: ${timeOnly ? clock(due.hour * 60 + due.minute) : dateTimeLabel(due)}',
+        strings.submissionTimeValue(
+          timeOnly ? clock(due.hour * 60 + due.minute) : dateTimeLabel(due),
+        ),
     ];
   }
 
@@ -1867,10 +1932,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       Navigator.pop(ctx);
                       editTask(row: task);
                     },
-                    child: const Text('編集')),
+                    child: Text(strings.edit)),
                 TextButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('閉じる')),
+                    child: Text(strings.close)),
               ]));
 
   Future<void> showDay(DateTime day, {bool tasksOnly = false}) =>
@@ -1888,7 +1953,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             if (!tasksOnly) ...[
                               if (engine.dayChange(day)?['is_national'] == 1)
                                 Text(holidayName(day)),
-                              if (replacementDay(day)) const Text('代替日'),
+                              if (replacementDay(day)) Text(strings.replacementDay),
                               for (final period in data
                                   .rows('events')
                                   .where((e) => engine.contains(e, day)))
@@ -1900,7 +1965,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 sessionTile(session),
                             ],
                             if (tasksOn(day).isEmpty && tasksOnly)
-                              const Text('この日が提出期限の課題はありません'),
+                Text(strings.noAssignmentsDue),
                             for (final task in tasksOn(day))
                               ListTile(
                                   contentPadding: EdgeInsets.zero,
@@ -1916,25 +1981,33 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   actions: [
                     TextButton(
                         onPressed: () => Navigator.pop(ctx),
-                        child: const Text('閉じる'))
+                        child: Text(strings.close))
                   ]));
 
   Widget sessionTile(Session s) => ListTile(
       contentPadding: EdgeInsets.zero,
       onTap: () => showSession(s),
-      leading: Text('${s.slot['position']}限',
+      leading: Text(
+      strings.timeSlotNumber(s.slot['position']),
           style: const TextStyle(fontWeight: FontWeight.w500)),
       title: Text(s.course['name'] as String,
           style: TextStyle(
               decoration: s.cancelled ? TextDecoration.lineThrough : null)),
       subtitle: Text(
-          '${clock(s.slot['start_minute'] as int)}–${clock(s.slot['end_minute'] as int)}  ${s.room}  ${s.cancelled ? '休講' : s.replacement ? '振替' : ''}'),
+      '${clock(s.slot['start_minute'] as int)}–${clock(s.slot['end_minute'] as int)}  ${s.room}  ${s.cancelled
+          ? strings.cancelled
+          : s.replacement
+          ? strings.replacement
+          : ''}',
+    ),
       trailing: const Icon(Icons.chevron_right));
   Widget markdown(String value) => MarkdownBody(
       data: value,
       selectable: true,
       sizedImageBuilder: (config) =>
-          Text('[画像: ${config.alt ?? config.title ?? config.uri.toString()}]'),
+          Text(
+      strings.imageAlt(config.alt ?? config.title ?? config.uri.toString()),
+    ),
       onTapLink: (_, href, title) {
         if (href != null) message(href);
       });
@@ -1951,11 +2024,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                          Text('教室  ${c['room']}\n教員  ${c['teacher']}'),
+                          Text(strings.roomAndInstructor(c['room'], c['teacher'])),
                           const SizedBox(height: 18),
                           markdown((c['notes'] as String).isEmpty
-                              ? 'メモはまだありません。'
-                              : c['notes'] as String)
+                              ? strings.noNotes
+                      : c['notes'] as String)
                         ]))),
                 actions: [
                   if (timetableEditing)
@@ -1964,17 +2037,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           Navigator.pop(ctx);
                           editCourse(c);
                         },
-                        child: const Text('編集')),
+                        child: Text(strings.edit)),
                   if (timetableEditing)
                     TextButton(
                         onPressed: () {
                           Navigator.pop(ctx);
                           editMeeting(courseId: c['id'] as String);
                         },
-                        child: const Text('コマを追加')),
+                        child: Text(strings.addTimeSlot)),
                   TextButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: const Text('閉じる'))
+                      child: Text(strings.close))
                 ]));
   }
 
@@ -1989,40 +2062,41 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     var check = row?['check_tasks'] != 0;
     await editForm(
         context,
-        row == null ? '講義を登録' : '講義を編集',
+        row == null ? strings.registerCourse : strings.editCourse,
         (ctx, set) =>
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               HistoryField(
                   controller: name,
-                  label: '講義名',
+                  label: strings.courseTitle,
                   history: history('name'),
                   required: true),
               HistoryField(
-                  controller: room, label: '教室名', history: history('room')),
+                  controller: room, label: strings.roomName, history: history('room')),
               HistoryField(
                   controller: teacher,
-                  label: '教員名',
+                  label: strings.instructorName,
                   history: history('teacher')),
-              field(lead, '開始何分前に通知（空欄: 全体設定、-1: オフ）', number: true),
+              field(lead, strings.courseReminderLead, number: true),
               if (start.text.isNotEmpty || end.text.isNotEmpty)
                 ExpansionTile(
                     tilePadding: EdgeInsets.zero,
-                    title: const Text('実施期間の追加条件'),
+                    title: Text(strings.extraDateConditions),
                     children: [
-                      dateField(ctx, start, '開始日（任意）', optional: true),
-                      dateField(ctx, end, '終了日（任意）', optional: true)
+                      dateField(ctx, start,
+                  strings.optionalStartDate, optional: true),
+                      dateField(ctx, end, strings.optionalEndDate, optional: true)
                     ]),
               preferenceSwitch(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('終了後に課題の確認を通知'),
+                  title: Text(strings.checkAssignmentsAfterClass),
                   value: check,
                   onChanged: canNotify ? (v) => set(() => check = v) : null),
-              field(notes, 'メモ（Markdown）', lines: 5)
+              field(notes, strings.markdownNotes, lines: 5)
             ]), () async {
       if (start.text.isNotEmpty &&
           end.text.isNotEmpty &&
           start.text.compareTo(end.text) > 0) {
-        throw const FormatException('終了日は開始日以降にしてください');
+        throw FormatException(strings.endDateBeforeStart);
       }
       await commit(() {
         db.put('courses', {
@@ -2086,7 +2160,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       return;
     }
     if (data.slots.isEmpty) {
-      message('設定で時限を登録してください');
+      message(strings.configureTimeSlots);
       return;
     }
     final oldCourse =
@@ -2096,7 +2170,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         teacher = text(oldCourse?['teacher']);
     final once = single ?? (row?['once_date'] != null);
     if (!once && editingTerm.isEmpty) {
-      message('年間予定で講義期間を登録してください');
+      message(strings.configureTeachingPeriod);
       setState(() => page = 2);
       return;
     }
@@ -2123,26 +2197,35 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         context,
         row == null
             ? once
-                ? '単発講義を登録'
-                : '講義を登録'
-            : '授業を編集',
+                ? strings.registerOneOffClass
+                : strings.registerCourse
+          : strings.editClass,
         (ctx, set) =>
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               if (!once)
                 Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
-                        '${periodLabel(data, data.find('events', term)!)}${weekdays[(entries.first['weekday'] as int) - 1]}曜日${data.find('slots', (entries.first['slots'] as Set<String>).first)?['position']}限')),
+                strings.meetingSummary(
+                  periodLabel(data, data.find('events', term)!),
+                  strings.fullWeekdayName(weekdays[(entries.first['weekday'] as int) - 1]),
+                  data.find(
+                    'slots',
+                    (entries.first['slots'] as Set<String>).first,
+                  )?['position'],
+                ),
+              ),
+            ),
               HistoryField(
                   controller: name,
-                  label: '講義名',
+                  label: strings.courseTitle,
                   history: history('name'),
                   required: true),
               HistoryField(
-                  controller: room, label: '教室名', history: history('room')),
+                  controller: room, label: strings.roomName, history: history('room')),
               HistoryField(
                   controller: teacher,
-                  label: '教員名',
+                  label: strings.instructorName,
                   history: history('teacher')),
               if (once) ...[
                 for (var i = 0; i < entries.length; i++)
@@ -2151,7 +2234,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       title: Text(
                           '${(entries[i]['date'] as TextEditingController).text} (${(entries[i]['slots'] as Set<String>).map((id) => data.find('slots', id)!['position']).join(', ')})'),
                       trailing: IconButton(
-                          tooltip: 'この実施日を削除',
+                          tooltip: strings.deleteClassDate,
                           icon: const Icon(Icons.delete_outline),
                           onPressed: () => set(() => entries.removeAt(i))),
                       onTap: () async {
@@ -2169,7 +2252,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       }),
                 TextButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('実施日を追加'),
+                    label: Text(strings.addClassDate),
                     onPressed: () async {
                       final picked = await pickSingleEntry(ctx);
                       if (picked != null) {
@@ -2186,11 +2269,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     }),
               ],
             ]), () async {
-      if (entries.isEmpty) throw const FormatException('実施日を追加してください');
+      if (entries.isEmpty) throw FormatException(strings.classDateRequired);
       final candidates = <DbRow>[];
       for (final entry in entries) {
         final slots = entry['slots'] as Set<String>;
-        if (slots.isEmpty) throw const FormatException('実施日ごとに時限を選んでください');
+        if (slots.isEmpty) throw FormatException(strings.chooseSlotForEachDate);
         for (final slot in slots) {
           candidates.add({
             'id': candidates.isEmpty && row != null ? row['id'] : newId(),
@@ -2216,7 +2299,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 m['once_date'] == candidate['once_date'] &&
                 (once ? m['period_id'] : meetingTerm(m)) ==
                     candidate['period_id'])) {
-          throw const FormatException('同じ曜日・実施日・時限に授業があります。別の時限を選んでください。');
+          throw FormatException(strings.meetingConflict);
         }
       }
       await commit(() {
@@ -2277,12 +2360,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                           Text(
-                              '${dayKey(s.date)}  ${s.slot['position']}限\n${clock(s.slot['start_minute'] as int)}–${clock(s.slot['end_minute'] as int)}\n教室 ${s.room}\n教員 ${s.course['teacher']}'),
+                  strings.sessionDetails(
+                    dayKey(s.date),
+                    s.slot['position'],
+                    clock(s.slot['start_minute'] as int),
+                    clock(s.slot['end_minute'] as int),
+                    s.room,
+                    s.course['teacher'],
+                  ),
+                ),
                           if (s.cancelled)
-                            const Padding(
+                  Padding(
                                 padding: EdgeInsets.only(top: 8),
-                                child: Text('この日は休講です')),
-                          if (s.replacement) Text('${dayKey(s.sourceDate)}の振替'),
+                                child: Text(strings.cancelledOnThisDay)),
+                          if (s.replacement) Text(strings.replacementFor(dayKey(s.sourceDate))),
                           const SizedBox(height: 18),
                           markdown(s.course['notes'] as String)
                         ]))),
@@ -2293,23 +2384,23 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           Navigator.pop(ctx);
                           editSession(s);
                         },
-                        child: const Text('この日の変更')),
+                        child: Text(strings.dayChanges)),
                   if (timetableEditing)
                     TextButton(
                         onPressed: () {
                           Navigator.pop(ctx);
                           editMeeting(row: s.meeting);
                         },
-                        child: const Text('定期設定')),
+                        child: Text(strings.recurringSettings)),
                   TextButton(
                       onPressed: () {
                         Navigator.pop(ctx);
                         editTask(session: s);
                       },
-                      child: const Text('課題を追加')),
+                      child: Text(strings.addAssignment)),
                   TextButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: const Text('閉じる'))
+                      child: Text(strings.close))
                 ]));
   }
 
@@ -2322,29 +2413,29 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     var slot = old?['replacement_slot_id'] as String? ?? s.slot['id'] as String;
     await editForm(
         context,
-        '${dayKey(s.sourceDate)}の授業',
+      strings.classOnDate(dayKey(s.sourceDate)),
         (ctx, set) => Column(children: [
               preferenceSwitch(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('休講'),
+                  title: Text(strings.cancelled),
                   value: cancelled,
                   onChanged: (v) => set(() => cancelled = v)),
-              dateField(ctx, replacement, '振替日（任意）',
+              dateField(ctx, replacement,
+            strings.optionalReplacementDate,
                   optional: true, onChanged: () => set(() {})),
               if (replacement.text.isNotEmpty)
-                choice(
-                    '振替先のコマ',
+                choice(strings.replacementTimeSlot,
                     slot,
                     {
                       for (final p in data.slots)
-                        p['id'] as String: '${p['position']}限'
-                    },
+                        p['id'] as String: strings.timeSlotNumber(p['position']),
+            },
                     (v) => set(() => slot = v)),
-              field(room, 'この日の教室（空欄: 元の設定）'),
-              field(lead, '開始何分前に通知（空欄: 元の設定、-1: オフ）', number: true)
+              field(room, strings.roomOverride),
+              field(lead, strings.reminderOverride, number: true)
             ]), () async {
       if (replacement.text == dayKey(s.sourceDate)) {
-        throw const FormatException('振替日は元の日と異なる日を選んでください');
+        throw FormatException(strings.replacementDateMustDiffer);
       }
       await put('session_changes', {
         'id': old?['id'] ?? newId(),
@@ -2380,9 +2471,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           behavior: SnackBarBehavior.floating,
           dismissDirection: DismissDirection.horizontal,
           duration: const Duration(seconds: 3),
-          content: Text('${rows.length}件の課題を削除しました'),
+          content: Text(strings.assignmentsDeleted(rows.length)),
           action: SnackBarAction(
-              label: '元に戻す',
+              label: strings.undo,
               onPressed: () async {
                 try {
                   await commit(() {
@@ -2438,9 +2529,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             spacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text('${selectedTasks.length}件選択中'),
+              Text(strings.itemsSelected(selectedTasks.length)),
               IconButton(
-                  tooltip: '選択を解除',
+                  tooltip: strings.clearSelection,
                   onPressed: () => setState(selectedTasks.clear),
                   icon: const Icon(Icons.close)),
               TextButton(
@@ -2452,32 +2543,32 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     });
                     if (mounted) setState(selectedTasks.clear);
                   },
-                  child: const Text('完了')),
+                  child: Text(strings.done)),
               TextButton(
                   onPressed: () => removeTasks(chosen),
-                  child: const Text('削除')),
+                  child: Text(strings.delete)),
               TextButton(
                   onPressed: chosen.length == 1
                       ? () => editTask(row: chosen.single)
                       : null,
-                  child: const Text('編集')),
+                  child: Text(strings.edit)),
             ])
       else
         Wrap(alignment: WrapAlignment.spaceBetween, children: [
           FilterChip(
               chipAnimationStyle: chipMotion(context),
-              label: const Text('完了した課題も表示'),
+              label: Text(strings.showCompleted),
               selected: showDone,
               onSelected: (v) => setState(() => showDone = v)),
           TextButton.icon(
               onPressed: editGlobalRules,
               icon: const Icon(Icons.notifications_none, size: 18),
-              label: const Text('通知の初期設定')),
+              label: Text(strings.defaultNotifications)),
         ]),
       const SizedBox(height: 12),
       Expanded(
           child: rows.isEmpty
-              ? empty('課題はありません', '右下の＋から課題を登録できます。')
+              ? empty(strings.noAssignments, strings.addAssignmentHelp)
               : ListView.separated(
                   padding: const EdgeInsets.only(bottom: 88),
                   itemCount: rows.length,
@@ -2500,15 +2591,19 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     final card = ContextActions(
                         desktop: desktop,
                         actions: [
-                          ContextAction('課題を表示', () => showTask(t)),
-                          ContextAction('課題を編集', () => editTask(row: t)),
                           ContextAction(
-                              t['done'] == 1 ? '未完了に戻す' : '完了にする',
+                          strings.viewAssignment, () => showTask(t)),
+                          ContextAction(
+                          strings.editAssignment, () => editTask(row: t)),
+                          ContextAction(
+                              t['done'] == 1 ? strings.markIncomplete
+                              : strings.markComplete,
                               () => put('tasks', {
                                     'id': t['id'],
                                     'done': t['done'] == 1 ? 0 : 1
                                   })),
-                          ContextAction('課題を削除', () => removeTasks([t])),
+                          ContextAction(
+                          strings.deleteAssignment, () => removeTasks([t])),
                         ],
                         child: Material(
                             color: color,
@@ -2634,13 +2729,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             7)
         .round();
     final label = weeks == 0
-        ? '今週'
+        ? strings.thisWeek
         : weeks > 0
-            ? '$weeks週間後'
-            : '${-weeks}週間前';
+            ? strings.weeksLater(weeks)
+        : strings.weeksBefore(-weeks);
     final subject =
         chosen.session == null ? '' : '（${chosen.session!.course['name']}）';
-    return '$labelの${weekdays[chosen.date.weekday - 1]}曜日${chosen.slot['position']}限目$subjectに提出';
+    return strings.deadlineHint(
+      label,
+      strings.fullWeekdayName(weekdays[chosen.date.weekday - 1]),
+      chosen.slot['position'],
+      subject,
+    );
   }
 
   Future<void> editTask({DbRow? row, Session? session, String? courseId}) async {
@@ -2670,19 +2770,20 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             '[{"kind":"hours","amount":72},{"kind":"day_clock","amount":1,"minute":420}]'));
     await editForm(
         context,
-        row == null ? '課題を登録' : '課題を編集',
+        row == null ? strings.registerAssignment : strings.editAssignment,
         (ctx, set) =>
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              field(title, '課題名', required: true),
+              field(title, strings.assignmentName, required: true),
               choice(
-                  '講義',
+            strings.course,
                   course,
                   taskCourseChoices(data, course),
                   (v) => set(() {
                         course = v;
                         chosen = null;
                       })),
-              dateField(ctx, due, '提出期限',
+              dateField(ctx, due,
+            strings.deadline,
                   time: true, onChanged: () => set(() => chosen = null)),
               if (chosen != null)
                 Padding(
@@ -2706,18 +2807,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     }
                   },
                   icon: const Icon(Icons.view_week_outlined),
-                  label: const Text('時間割から提出日時を選ぶ')),
+                  label: Text(strings.chooseDeadlineFromTimetable)),
               const SizedBox(height: 12),
               HistoryField(
                   controller: destination,
-                  label: '提出先',
+                  label: strings.destination,
                   history: data
                       .rows('destinations')
                       .reversed
                       .map((d) => d['name'] as String)
                       .toList()),
-              field(notes, 'メモ', lines: 3),
-              const Text('通知'),
+              field(notes, strings.notes, lines: 3),
+          Text(strings.notifications),
               for (var i = 0; i < rules.length; i++)
                 ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -2731,14 +2832,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     if (rule != null) set(() => rules.add(rule));
                   },
                   icon: const Icon(Icons.add),
-                  label: const Text('通知を追加'))
+                  label: Text(strings.addNotification))
             ]), () async {
       final resolved = parseDeadline(due.text);
-      if (resolved == null) throw const FormatException('提出期限を分まで入力してください');
+      if (resolved == null) throw FormatException(strings.deadlineMinuteRequired);
       for (final rule in rules) {
         final at = engine.reminderTime(rule, resolved);
         if (at != null && at.isAfter(resolved)) {
-          throw const FormatException('通知日時は期限以前にしてください');
+          throw FormatException(strings.notificationAfterDeadline);
         }
       }
       await commit(() {
@@ -2791,7 +2892,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     actionsPadding: const EdgeInsets.all(12),
-                    title: const Text('提出日時を選択'),
+                    title: Text(strings.selectDeadline),
                     content: SizedBox(
                         width: 1000,
                         height: 520,
@@ -2799,7 +2900,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           weekControls(
                               selectedWeek, (v) => set(() => selectedWeek = v)),
                           Text(
-                              '${(selectedWeek.difference(beginningOfWeek(DateTime.now())).inDays / 7).round()}週間後'),
+                  strings.weeksLater(
+                    (selectedWeek
+                                .difference(beginningOfWeek(DateTime.now()))
+                                .inDays /
+                            7)
+                        .round(),
+                  ),
+                ),
                           const SizedBox(height: 8),
                           Expanded(
                               child: weekGrid(selectedWeek,
@@ -2809,7 +2917,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: const Text('キャンセル'))
+                          child: Text(strings.cancel))
                     ])));
   }
 
@@ -2818,10 +2926,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         '[{"kind":"hours","amount":72},{"kind":"day_clock","amount":1,"minute":420}]'));
     await editForm(
         context,
-        '課題の通知・全体設定',
+      strings.assignmentNotificationDefaults,
         (ctx, set) =>
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const Text('新しい課題へ初期値として入れます。空にすると初期値の通知はありません。'),
+          Text(strings.assignmentNotificationDefaultsHelp),
               const SizedBox(height: 12),
               for (var i = 0; i < rules.length; i++)
                 ListTile(
@@ -2836,7 +2944,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     if (r != null) set(() => rules.add(r));
                   },
                   icon: const Icon(Icons.add),
-                  label: const Text('通知を追加'))
+                  label: Text(strings.addNotification))
             ]), () async {
       await setting('task_rules', jsonEncode(rules));
       return true;
@@ -2906,9 +3014,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final calendar = ListView(controller: calendarScroll, children: [
       if (selectingPeriod)
         Row(children: [
-          Expanded(child: Text('開始日、終了日の順にカレンダーを選択してください。')),
+          Expanded(child: Text(strings.choosePeriodDates)),
           IconButton(
-              tooltip: '期間選択をやめる',
+              tooltip: strings.cancelPeriodSelection,
               onPressed: () => setState(() => selectingPeriod = false),
               icon: const Icon(Icons.close))
         ]),
@@ -2921,8 +3029,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                   desktop
-                      ? 'クリックで日ごとの変更・ダブルクリックで期間編集・ドラッグで期間追加。右クリックで操作一覧。'
-                      : 'タップで日ごとの変更・長押しで期間編集・長押ししてなぞると期間追加。',
+                      ? strings.desktopCalendarHelp
+                  : strings.mobileCalendarHelp,
                   style: const TextStyle(fontSize: 12)))),
       AnnualCalendar(
           todayKey: calendarTodayKey,
@@ -2953,16 +3061,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     return Column(children: [
       Row(children: [
         IconButton(
-            tooltip: '前の年度',
+            tooltip: strings.previousYear,
             onPressed: () => setState(() => year--),
             icon: const Icon(Icons.chevron_left)),
         Expanded(
-            child: Text('$year年度',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w500))),
+            child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                    academicYearLabel(fiscalStart, fiscalEnd),
+                    key: const ValueKey('calendar-academic-year'),
+                    maxLines: 1,
+                    softWrap: false,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w500)))),
         IconButton(
-            tooltip: '次の年度',
+            tooltip: strings.nextYear,
             onPressed: () => setState(() => year++),
             icon: const Icon(Icons.chevron_right)),
       ]),
@@ -2971,25 +3085,30 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   List<ContextAction> calendarDateActions(DateTime date) => [
-        ContextAction('この日の変更', () => editDay(date)),
+        ContextAction(strings.dayChanges, () => editDay(date)),
         if (engine.dayChange(date) != null)
           ContextAction(
-              'この日の変更を削除',
+        strings.deleteDayChanges,
               () => confirmRemove(
-                  'day_changes', engine.dayChange(date)!, '日ごとの変更')),
-        ContextAction('この日の講義を確認', () => showDay(date)),
-        ContextAction('この日の期間を編集', () => editPeriodAt(date)),
+                  'day_changes', engine.dayChange(date)!,
+          strings.dailyChanges,
+        )),
+        ContextAction(strings.viewDayClasses, () => showDay(date)),
+        ContextAction(strings.editDayPeriod, () => editPeriodAt(date)),
         for (final event
             in data.rows('events').where((e) => engine.contains(e, date))) ...[
           ContextAction(
-              '${periodLabel(data, event)}を編集', () => editEvent(event)),
-          ContextAction('${periodLabel(data, event)}を削除',
-              () => confirmRemove('events', event, '期間')),
+        strings.editNamed(periodLabel(data, event)), () => editEvent(event)),
+          ContextAction(
+        strings.deleteNamedAction(periodLabel(data, event)),
+              () => confirmRemove('events', event, strings.period)),
         ],
-        ContextAction('期間を追加',
+        ContextAction(
+      strings.addPeriod,
             () => editEvent(null, DateTimeRange(start: date, end: date))),
-        ContextAction('単発講義を追加', () => editMeeting(day: date, single: true)),
-        ContextAction('祝日を休日にする', importHolidays),
+        ContextAction(
+      strings.addOneOffClass, () => editMeeting(day: date, single: true)),
+        ContextAction(strings.importHolidays, importHolidays),
       ];
 
   Future<void> editPeriodAt(DateTime date) async {
@@ -3006,7 +3125,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final selected = await showAppDialog<DbRow>(
         context: context,
         barrierDismissible: true,
-        builder: (ctx) => SimpleDialog(title: const Text('編集する期間'), children: [
+        builder: (ctx) => SimpleDialog(title: Text(strings.choosePeriodToEdit), children: [
               for (final e in periods)
                 SimpleDialogOption(
                     onPressed: () => Navigator.pop(ctx, e),
@@ -3033,7 +3152,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             .compareTo('${b['kind']}:${b['start_date']}'));
     await editForm(
         context,
-        '期間をまとめる',
+      strings.mergePeriods,
         (_, set) => Column(children: [
               for (final period in periods)
                 SelectionCheck(
@@ -3047,7 +3166,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             ids.remove(period['id']);
                           }
                         })),
-              field(name, 'まとめた期間の名前（任意）'),
+              field(name, strings.mergedPeriodName),
             ]), () async {
       await commit(() => db.mergePeriods(ids.toList(), name.text));
       return true;
@@ -3073,25 +3192,25 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     var kind = row?['kind'] as String? ?? 'teaching';
     await editForm(
         context,
-        row == null ? '期間を登録' : '期間を編集',
+        row == null ? strings.registerPeriod : strings.editPeriod,
         (ctx, set) => Column(children: [
-              choice(
-                  '種類',
+              choice(strings.type,
                   kind,
-                  {'teaching': '講義期間', 'exam': '試験期間', 'holiday': '全学休業日・長期休暇'},
+                  {'teaching': strings.teachingPeriod, 'exam': strings.examPeriod, 'holiday': strings.universityClosure,
+          },
                   (v) => set(() => kind = v)),
-              field(name, '名前（任意）'),
+              field(name, strings.optionalName),
               for (final part in ranges)
                 Column(children: [
-                  dateField(ctx, part.$1, '開始日'),
-                  dateField(ctx, part.$2, '終了日'),
+                  dateField(ctx, part.$1, strings.startDate),
+                  dateField(ctx, part.$2, strings.endDate),
                   if (ranges.length > 1)
                     Align(
                         alignment: Alignment.centerRight,
                         child: TextButton.icon(
                             onPressed: () => set(() => ranges.remove(part)),
                             icon: const Icon(Icons.delete_outline),
-                            label: const Text('この日程を削除'))),
+                            label: Text(strings.deleteDateRange))),
                 ]),
               TextButton.icon(
                   onPressed: () => set(() => ranges.add((
@@ -3099,13 +3218,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                         text(dayKey(DateTime.now()))
                       ))),
                   icon: const Icon(Icons.add),
-                  label: const Text('日程を追加')),
+                  label: Text(strings.addDateRange)),
             ]), () async {
       for (final part in ranges) {
         if (DateTime.tryParse(part.$1.text) == null ||
             DateTime.tryParse(part.$2.text) == null ||
             part.$1.text.compareTo(part.$2.text) > 0) {
-          throw const FormatException('終了日は開始日以降にしてください');
+          throw FormatException(strings.endDateBeforeStart);
         }
       }
       final starts = ranges.map((r) => r.$1.text).toList()..sort();
@@ -3148,7 +3267,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     var substitute = !cancelled;
     await editForm(
         context,
-        '${dayKey(date)}の全学設定',
+      strings.universityDaySettings(dayKey(date)),
         (ctx, set) => Column(children: [
               SegmentedButton<bool>(
                   style: ButtonStyle(
@@ -3159,9 +3278,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                   .colorScheme
                                   .onSurface
                                   .withValues(alpha: .55))),
-                  segments: const [
-                    ButtonSegment(value: true, label: Text('全学休業')),
-                    ButtonSegment(value: false, label: Text('代替日')),
+                  segments: [
+                    ButtonSegment(value: true, label: Text(strings.universityClosed)),
+                    ButtonSegment(value: false, label: Text(strings.replacementDay)),
                   ],
                   showSelectedIcon: false,
                   selected: {cancelled},
@@ -3171,23 +3290,24 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       })),
               const SizedBox(height: 20),
               if (cancelled)
-                dateField(ctx, replacement, 'この日の代替日（任意）', optional: true),
+                dateField(ctx, replacement,
+              strings.optionalUniversityReplacement, optional: true),
               if (substitute)
-                choice(
-                    '代わりの時間割',
+                choice(strings.replacementTimetable,
                     weekday,
-                    {for (var i = 1; i <= 7; i++) i: '${weekdays[i - 1]}曜日'},
+                    {for (var i = 1; i <= 7; i++) i: strings.fullWeekdayName(weekdays[i - 1]),
+            },
                     (v) => set(() => weekday = v)),
-              const Text('全学代替日は、その日に本来ある曜日の講義を置き換えます。')
+          Text(strings.universityReplacementHelp)
             ]), () async {
       if (cancelled && replacement.text == dayKey(date)) {
-        throw const FormatException('代替日は別の日を指定してください');
+        throw FormatException(strings.universityReplacementMustDiffer);
       }
       if (cancelled &&
           replacement.text.isNotEmpty &&
           engine.dayChange(DateTime.parse(replacement.text)) != null &&
           replacement.text != old?['replacement_date']) {
-        throw const FormatException('代替先には既に全学設定があります。別の日を選んでください');
+        throw FormatException(strings.universityReplacementConflict);
       }
       await commit(() {
         if (old?['replacement_date'] != null) {
@@ -3246,7 +3366,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       final first = dataset['first_year'] as int,
           last = dataset['last_year'] as int;
       if (fiscalStart.year < first || fiscalEnd.year > last) {
-        message('同梱の祝日データは$first～$last年です。この年度の全祝日を登録するにはデータの更新が必要です。');
+        message(strings.holidayDataRange(first, last));
         return;
       }
       final dates = (dataset['dates'] as Map)
@@ -3259,16 +3379,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           context: context,
           barrierDismissible: true,
           builder: (ctx) => AlertDialog(
-                  title: Text('$year年度の祝日を休業日に'),
+                  title: Text(strings.importHolidaysForYear(year)),
                   content: Text(
-                      '${dates.length}日の祝日・振替休日等を登録します。同じIDで登録済みの祝日は重複しません。\n出典: 内閣府（$first～$last年、オフラインデータ）'),
+            strings.importHolidaysConfirmation(dates.length, first, last),
+          ),
                   actions: [
                     TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('キャンセル')),
+                        child: Text(strings.cancel)),
                     FilledButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('登録'))
+                        child: Text(strings.register))
                   ]));
       if (confirmed != true) return;
       await commit(() {
@@ -3283,7 +3404,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           });
         }
       });
-      message('${dates.length}日の祝日を登録しました');
+      message(strings.holidaysImported(dates.length));
     } catch (e) {
       message(e.toString());
     }
@@ -3291,28 +3412,33 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Widget settings() {
     final groups = {
-      'general': '一般',
-      'academic': '年度・授業時間',
-      'display': '表示設定',
-      if (!desktop) 'operations': '操作設定',
-      'notifications': '通知',
-      'accessibility': 'アクセシビリティ',
-      'about': 'このアプリについて',
+      'general': strings.general,
+      'academic': strings.universitySettings,
+      'display': strings.displaySettings,
+      if (!desktop) 'operations': strings.operationSettings,
+      'notifications': strings.notifications,
+      'accessibility': strings.accessibility,
+      'about': strings.about,
     };
     final contents = <Widget>[];
     switch (settingsCategory) {
       case 'about':
         contents.addAll([
-          section('うに時間割', [
+          section(strings.appName, [
             FutureBuilder<String>(
                 future: applicationVersion,
                 builder: (context, snapshot) => SelectableText(
-                    'バージョン: ${snapshot.data ?? (snapshot.hasError ? '取得できません' : '…')}')),
+                strings.version(
+                  snapshot.data ??
+                      (snapshot.hasError ? strings.versionUnavailable : '…'),
+                ),
+              ),
+            ),
           ]),
-          section('制作者', [
-            const ListTile(
+          section(strings.author, [
+            ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text('名前'),
+                title: Text(strings.name),
                 subtitle: SelectableText(appAuthorName)),
             const ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -3323,36 +3449,49 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 title: Text('GitHub'),
                 subtitle: SelectableText(appAuthorGitHub)),
           ]),
-          section('ソースコード', [
-            const SelectableText(appRepository),
-          ]),
-          section('ライセンス', [const SelectableText('MIT License')]),
+          section(strings.sourceCode, [
+            const SelectableText(appRepository)]),
+          section(strings.license, [const SelectableText('MIT License')]),
         ]);
         break;
       case 'general':
-        contents.add(section('ファイル', [
+        contents.add(section(strings.language, [
+            settingsChoice(
+              strings.language,
+              widget.storage.localSettings['language'] ?? 'system',
+              {
+                'system': strings.followSystem,
+                'ja': strings.languageJapanese,
+                'en': strings.languageEnglish,
+              },
+              (value) async => widget.storage.setLanguage(value),
+            ),
+          ]),
+        );
+        contents.add(
+          section(strings.files, [
           SelectableText(widget.storage.location,
               style: const TextStyle(fontSize: 12)),
           Wrap(spacing: 8, children: [
             OutlinedButton.icon(
                 onPressed: openDatabase,
                 icon: const Icon(Icons.file_open_outlined),
-                label: const Text('.unitableを開く')),
+                label: Text(strings.openUnitable)),
             OutlinedButton.icon(
                 onPressed: () => openDatabase(create: true),
                 icon: const Icon(Icons.add),
-                label: const Text('新しい.unitableを作成')),
+                label: Text(strings.createDatabase)),
             OutlinedButton.icon(
                 onPressed: exportDatabase,
                 icon: const Icon(Icons.save_alt),
-                label: const Text('コピーを書き出す')),
+                label: Text(strings.exportCopy)),
           ]),
           if (widget.storage.pendingSyncError != null)
             Text(widget.storage.pendingSyncError!),
         ]));
         break;
       case 'academic':
-        contents.add(section('年度・授業時間', [
+        contents.add(section(strings.universitySettings, [
           LayoutBuilder(builder: (ctx, size) {
             final width =
                 size.maxWidth < 480 ? size.maxWidth : (size.maxWidth - 16) / 2;
@@ -3360,15 +3499,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               SizedBox(
                   width: width,
                   child: settingsChoice(
-                      '年度の開始月',
+                        strings.academicYearStartsIn,
                       int.parse(data.setting('year_start', '4')),
-                      {for (var m = 1; m <= 12; m++) m: '$m月'},
+                      {for (var m = 1; m <= 12; m++) m: strings.monthNumber(m.toString()),
+                        },
                       (v) => setting('year_start', v.toString()))),
               SizedBox(
                   width: width,
-                  child: settingsChoice('週の開始曜日', weekStart, {
-                    for (var i = 1; i <= 7; i++) i: '${weekdays[i - 1]}曜日'
-                  }, (v) async {
+                  child: settingsChoice(
+                        strings.weekStartsOn, weekStart, {
+                    for (var i = 1; i <= 7; i++) i: strings.fullWeekdayName(weekdays[i - 1]),
+                        }, (v) async {
                     await setting('week_start', v.toString());
                     setState(() => week = beginningOfWeek(week));
                   })),
@@ -3379,71 +3520,76 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           TextButton.icon(
               onPressed: () => editSlot(),
               icon: const Icon(Icons.add),
-              label: const Text('コマを追加')),
+              label: Text(strings.addTimeSlot)),
         ]));
         break;
       case 'display':
         contents.addAll([
-          section('配色', [
+          section(strings.appearance, [
             settingsChoice(
-                'テーマ',
+              strings.theme,
                 data.setting('theme_mode', 'system'),
-                {'system': '端末に合わせる', 'light': 'ライト', 'dark': 'ダーク'},
+                {'system': strings.followSystem, 'light': strings.light, 'dark': strings.dark,
+              },
                 (v) => setting('theme_mode', v)),
             preferenceSwitch(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('有機EL用の黒い背景'),
+                title: Text(strings.oledBackground),
                 value: data.setting('oled_black', '0') == '1',
                 onChanged: isDark(context)
                     ? (v) => setting('oled_black', v ? '1' : '0')
                     : null),
           ]),
-          section('時間割の表示', [
+          section(strings.timetableDisplay, [
             preferenceSwitch(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('連続表示'),
+                title: Text(strings.continuousDisplay),
                 value: data.setting('timetable_scroll', 'week') == 'smooth',
                 onChanged: (v) =>
                     setting('timetable_scroll', v ? 'smooth' : 'week')),
             if (data.setting('timetable_scroll', 'week') == 'smooth')
               ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('コマ幅'),
+                  title: Text(strings.timeSlotWidth),
                   trailing: Text(
                       '${data.setting('timetable_column_width', desktop ? '120' : '80')}px'),
                   onTap: editTimetableWidth),
             ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('科目名の文字サイズ'),
-                trailing: Text(data.setting('course_font_size', '18')),
+                title: Text(strings.courseFontSize),
+                trailing: Text(
+                    data.setting('course_font_size', defaultCourseFontSize)),
                 onTap: () =>
-                    editTimetableFont('course_font_size', '科目名の文字サイズ', '18')),
+                    editTimetableFont('course_font_size',
+                strings.courseFontSize, defaultCourseFontSize)),
             ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('教室名の文字サイズ'),
-                trailing: Text(data.setting('room_font_size', '12')),
+                title: Text(strings.roomFontSize),
+                trailing: Text(
+                    data.setting('room_font_size', defaultRoomFontSize)),
                 onTap: () =>
-                    editTimetableFont('room_font_size', '教室名の文字サイズ', '12')),
+                    editTimetableFont('room_font_size',
+                strings.roomFontSize, defaultRoomFontSize)),
             ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('時間割に表示しない曜日'),
+                title: Text(strings.hiddenWeekdays),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: editHiddenWeekdays),
           ]),
           ExpansionTile(
               shape: const Border(),
               collapsedShape: const Border(),
-              title: const Text('詳細設定'),
+              title: Text(strings.advancedSettings),
               tilePadding: EdgeInsets.zero,
               children: [
                 ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('カラーパレット'),
+                    title: Text(strings.colorPalette),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: editAppPalette),
                 ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('年間予定の表示優先順位'),
+                    title: Text(strings.calendarPriority),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: editCalendarStyle),
               ]),
@@ -3453,7 +3599,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         if (!desktop) {
           contents.add(ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('長押しの判定時間'),
+              title: Text(strings.longPressDuration),
               trailing:
                   Text('${data.setting('calendar_long_press_ms', '500')}ms'),
               onTap: editLongPressDuration));
@@ -3461,29 +3607,30 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         break;
       case 'notifications':
         contents.addAll([
-          section('通知', [
+          section(strings.notifications, [
             preferenceSwitch(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('通知を使う'),
+                title: Text(strings.enableNotifications),
                 value: canNotify && data.setting('notifications', '0') == '1',
                 onChanged: canNotify ? toggleNotifications : null),
-            Text(canNotify ? notices.status : 'この版では通知を利用できません。',
+            Text(canNotify ? notices.status : strings.notificationsUnavailable,
                 style: const TextStyle(fontSize: 12)),
             if (NotificationService.testingEnabled) ...[
               const SizedBox(height: 16),
-              const Text('通知テスト（テストAPK限定）'),
-              const Text('課題確認通知と「課題を追加」を確認できます。予約は最新の1件です。'),
+              Text(strings.notificationTest),
+              Text(strings.notificationTestHelp),
               if (data.rows('courses').isNotEmpty)
-                choice('テストする科目',
+                choice(
+                  strings.testCourse,
                     data.find('courses', notificationTestCourse)?['id'] as String? ??
                         data.rows('courses').first['id'] as String,
                     {for (final c in data.rows('courses'))
                       c['id'] as String: c['name'] as String},
                     (v) => setState(() => notificationTestCourse = v)),
-              for (final option in const <(String, Duration)>[
-                ('今すぐ通知をテスト', Duration.zero),
-                ('30秒後に通知をテスト', Duration(seconds: 30)),
-                ('5分後に通知をテスト', Duration(minutes: 5)),
+              for (final option in <(String, Duration)>[
+                (strings.testNow, Duration.zero),
+                (strings.testInThirtySeconds, const Duration(seconds: 30)),
+                (strings.testInFiveMinutes, const Duration(minutes: 5)),
               ])
                 OutlinedButton.icon(
                     onPressed: canNotify && !sendingTestNotification &&
@@ -3496,8 +3643,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             if (Platform.isAndroid && canNotify)
               ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('正確な時刻の通知を許可'),
-                  subtitle: const Text('端末の「アラームとリマインダー」を許可すると通知の遅れを軽減できます。'),
+                  title: Text(strings.allowExactAlarms),
+                  subtitle: Text(strings.exactAlarmHelp),
                   onTap: () async {
                     try {
                       await notices.requestExactAlarms();
@@ -3509,8 +3656,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             if (Platform.isAndroid && canNotify)
               ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('省電力設定を確認'),
-                  subtitle: const Text('通知が遅れる場合は、アプリ情報からバッテリーの制限を見直してください。'),
+                  title: Text(strings.batterySettings),
+                  subtitle: Text(strings.batterySettingsHelp),
                   onTap: () async {
                     try {
                       await notices.openBatterySettings();
@@ -3520,7 +3667,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   }),
             preferenceSwitch(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('教室を通知する'),
+                title: Text(strings.notifyRoom),
                 value: data.leadMinutes >= 0,
                 onChanged: canNotify
                     ? (v) => setting('lead_minutes',
@@ -3529,36 +3676,37 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             if (data.leadMinutes >= 0)
               ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('講義開始${data.leadMinutes}分前'),
+                  title: Text(strings.minutesBeforeClass(data.leadMinutes)),
                   enabled: canNotify,
                   onTap: canNotify ? editLeadTiming : null,
                   trailing: const Icon(Icons.edit_outlined, size: 18)),
             ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('新しい課題の通知タイミング'),
+                title: Text(strings.newAssignmentNotifications),
                 onTap: editGlobalRules,
                 trailing: const Icon(Icons.chevron_right)),
           ]),
           ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('休日の定義'),
+              title: Text(strings.holidayDefinition),
               trailing: const Icon(Icons.chevron_right),
               onTap: editHolidayDefinition),
           ExpansionTile(
               shape: const Border(),
               collapsedShape: const Border(),
-              title: const Text('詳細設定'),
+              title: Text(strings.advancedSettings),
               tilePadding: EdgeInsets.zero,
               children: [
                 ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('大学のタイムゾーン'),
+                    title: Text(strings.universityTimezone),
                     subtitle: Text(data.setting('timezone', 'Asia/Tokyo')),
                     onTap: editTimezone),
                 if (Platform.isWindows)
-                  const Text('Windowsで予約の取消・再設定を確実に行うにはMSIX版を使用してください。',
+                Text(
+                  strings.msixSchedulingHelp,
                       style: TextStyle(fontSize: 12)),
-                const Text('予約は今後1年分のうち直近480件までです。起動・画面復帰時に補充します。',
+              Text(strings.schedulingLimit,
                     style: TextStyle(fontSize: 12)),
               ]),
         ]);
@@ -3567,17 +3715,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         contents.addAll([
           preferenceSwitch(
               contentPadding: EdgeInsets.zero,
-              title: const Text('動きを減らす'),
+              title: Text(strings.reduceMotion),
               value: data.setting('reduce_motion', '0') == '1',
               onChanged: (v) => setting('reduce_motion', v ? '1' : '0')),
           preferenceSwitch(
               contentPadding: EdgeInsets.zero,
-              title: const Text('色覚に配慮した表示'),
+              title: Text(strings.colorVisionSupport),
               value: data.setting('accessibility_marks', '0') == '1',
               onChanged: (v) => setting('accessibility_marks', v ? '1' : '0')),
           preferenceSwitch(
               contentPadding: EdgeInsets.zero,
-              title: const Text('文字色を濃くする'),
+              title: Text(strings.strongerText),
               value: data.setting('dark_text', '0') == '1',
               onChanged: (v) => setting('dark_text', v ? '1' : '0')),
         ]);
@@ -3604,7 +3752,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     child: Column(children: [
                       Row(children: [
                         IconButton(
-                            tooltip: '設定一覧に戻る',
+                            tooltip: strings.backToSettings,
                             onPressed: () =>
                                 setState(() => settingsCategory = null),
                             icon: const Icon(Icons.arrow_back)),
@@ -3618,12 +3766,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Future<void> editLongPressDuration() async {
     final value = text(data.setting('calendar_long_press_ms', '500'));
-    await editForm(context, '長押しの判定時間',
-        (_, set) => field(value, '時間（ミリ秒）', number: true, required: true),
+    await editForm(context,
+      strings.longPressDuration,
+        (_, set) => field(value,
+        strings.durationMilliseconds, number: true, required: true),
         () async {
       final ms = int.parse(value.text);
       if (ms <= 0 || ms > 2147483647) {
-        throw const FormatException('1以上のミリ秒を入力してください');
+        throw FormatException(strings.positiveMilliseconds);
       }
       await setting('calendar_long_press_ms', ms.toString());
       return true;
@@ -3634,12 +3784,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<void> editTimetableWidth() async {
     final value =
         text(data.setting('timetable_column_width', desktop ? '120' : '80'));
-    await editForm(context, 'コマ幅',
-        (_, set) => field(value, '幅（px）', number: true, required: true),
+    await editForm(context,
+      strings.timeSlotWidth,
+        (_, set) => field(value, strings.widthPixels, number: true, required: true),
         () async {
       final width = int.parse(value.text);
       if (width < 40 || width > 600) {
-        throw const FormatException('40〜600の数値を入力してください');
+        throw FormatException(strings.slotWidthRange);
       }
       await setting('timetable_column_width', width.toString());
       return true;
@@ -3651,7 +3802,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     var dark = isDark(context);
     final light = Map<String, int>.from(appPalette(data, false));
     final night = Map<String, int>.from(appPalette(data, true));
-    await editForm(context, 'カラーパレット', (ctx, set) {
+    await editForm(context,
+      strings.colorPalette, (ctx, set) {
       final colors = dark ? night : light;
       Widget entry(String key, String label) => ListTile(
           key: ValueKey('palette-role-$key'),
@@ -3670,7 +3822,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             if (result != null && ctx.mounted) set(() => colors[key] = result);
           });
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        choice('編集する配色', dark, {false: 'ライト', true: 'ダーク'},
+        choice(strings.paletteToEdit, dark, {false: strings.light, true: strings.dark,
+            },
             (v) => set(() => dark = v)),
         for (final group in paletteGroups.entries)
           ExpansionTile(
@@ -3683,20 +3836,22 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               ]),
         for (final kind in ['teaching', 'exam'])
           ExpansionTile(
-              title: Text(kind == 'teaching' ? '講義期間の9色' : '試験期間の9色'),
+              title: Text(kind == 'teaching' ? strings.teachingPeriodColors
+                      : strings.examPeriodColors,
+                ),
               shape: const Border(),
               collapsedShape: const Border(),
               tilePadding: EdgeInsets.zero,
               children: [
-                for (var i = 0; i < 9; i++) entry('${kind}_$i', '${i + 1}番目')
-              ]),
+                for (var i = 0; i < 9; i++) entry('${kind}_$i', strings.colorIndex(i + 1)),
+                ]),
         TextButton(
             onPressed: () => set(() {
                   colors
                     ..clear()
                     ..addAll(paletteDefaults(dark));
                 }),
-            child: const Text('この配色を初期値に戻す')),
+            child: Text(strings.resetPalette)),
       ]);
     }, () async {
       await commit(() {
@@ -3713,7 +3868,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final order = calendarOrder(data);
     await editForm(
         context,
-        '年間予定の表示優先順位',
+      strings.calendarPriority,
         (_, set) => Column(children: [
               ReorderableListView(
                   shrinkWrap: true,
@@ -3735,7 +3890,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           ..clear()
                           ..addAll(calendarRuleLabels.keys);
                       }),
-                  child: const Text('初期値に戻す')),
+                  child: Text(strings.resetDefaults)),
             ]), () async {
       await setting('calendar_order', jsonEncode(order));
       return true;
@@ -3775,16 +3930,19 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   }),
               ExpansionTile(
                   tilePadding: EdgeInsets.zero,
-                  title: const Text('RGBAで指定'),
+                  title: Text(strings.specifyRgba),
                   children: [
                     for (var i = 0; i < 4; i++)
                       field(channels[i], ['R', 'G', 'B', 'A'][i],
-                          number: true, required: true)
-                  ]),
-            ]), () async {
+                          number: true, required: true,
+                ),
+            ],
+          ),
+        ],
+      ), () async {
       final values = channels.map((c) => int.parse(c.text)).toList();
       if (values.any((v) => v < 0 || v > 255)) {
-        throw const FormatException('0〜255の整数を入力してください');
+        throw FormatException(strings.rgbaRange);
       }
       result =
           (values[3] << 24) | (values[0] << 16) | (values[1] << 8) | values[2];
@@ -3800,11 +3958,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       String key, String label, String fallback) async {
     final value = text(data.setting(key, fallback));
     await editForm(context, label,
-        (_, set) => field(value, '文字サイズ', number: true, required: true),
+        (_, set) => field(value, strings.fontSize, number: true, required: true),
         () async {
       final size = double.tryParse(value.text);
       if (size == null || !size.isFinite || size < 8 || size > 36) {
-        throw const FormatException('8〜36の数値を入力してください');
+        throw FormatException(strings.fontSizeRange);
       }
       await setting(key, size.toString());
       return true;
@@ -3816,12 +3974,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final days = {...hiddenWeekdays};
     await editForm(
         context,
-        '時間割に表示しない曜日',
+      strings.hiddenWeekdays,
         (_, set) => Column(children: [
               for (var day = 1; day <= 7; day++)
                 SelectionCheck(
                     key: ValueKey('hidden-weekday-$day'),
-                    label: Text('${weekdays[day - 1]}曜日'),
+                    label: Text(strings.fullWeekdayName(weekdays[day - 1])),
                     selected: days.contains(day),
                     onSelected: (v) => set(() {
                           if (v) {
@@ -3847,16 +4005,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         .toSet();
     await editForm(
       context,
-      '休日の定義',
+      strings.holidayDefinition,
       (ctx, set) => Column(
         children: [
           SelectionCheck(
-            label: const Text('休業日・祝日'),
+            label: Text(strings.closuresAndHolidays),
             selected: options['closures'] == true,
             onSelected: (v) => set(() => options['closures'] = v),
           ),
           SelectionCheck(
-            label: const Text('講義がない日'),
+            label: Text(strings.noClassDays),
             selected: options['no_classes'] == true,
             onSelected: (v) => set(() => options['no_classes'] = v),
           ),
@@ -3869,7 +4027,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 children: [
                   SelectionCheck(
                     key: ValueKey('holiday-weekday-$day'),
-                    label: Text('${weekdays[day - 1]}曜日'),
+                    label: Text(strings.fullWeekdayName(weekdays[day - 1])),
                     selected: days.contains(day),
                     onSelected: (v) => set(() {
                       if (v) {
@@ -3885,11 +4043,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           ? Padding(
                               key: ValueKey('holiday-only-no-classes-$day'),
                               padding: const EdgeInsets.only(
-                                left: 32,
-                              ),
+                                left: 32),
                               child: preferenceSwitch(
                                 contentPadding: EdgeInsets.zero,
-                                title: const Text('講義がない日に限定する'),
+                                title: Text(strings.onlyDaysWithoutClasses),
                                 value: onlyEmpty.contains(day),
                                 onChanged: (v) => set(() {
                                   if (v) {
@@ -3951,11 +4108,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final lead = text(data.leadMinutes < 0
         ? data.setting('last_lead_minutes', '10')
         : data.leadMinutes);
-    await editForm(context, '教室の通知',
-        (_, set) => field(lead, '開始何分前', number: true, required: true),
+    await editForm(context,
+      strings.roomNotifications,
+        (_, set) => field(lead, strings.minutesBeforeStart, number: true, required: true),
         () async {
       if (int.parse(lead.text) < 0) {
-        throw const FormatException('0以上の分数を入力してください');
+        throw FormatException(strings.nonNegativeMinutes);
       }
       await commit(() {
         db.put('settings', {'id': 'lead_minutes', 'value': lead.text});
@@ -3973,12 +4131,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final names = tz.timeZoneDatabase.locations.keys.toList()..sort();
     await editForm(
         context,
-        '大学のタイムゾーン',
+      strings.universityTimezone,
         (ctx, set) => Column(children: [
               TextField(
                   controller: filter,
-                  decoration: const InputDecoration(
-                      labelText: '地域を検索', prefixIcon: Icon(Icons.search)),
+                  decoration: InputDecoration(
+                      labelText: strings.searchRegion, prefixIcon: Icon(Icons.search)),
                   onChanged: (_) => set(() {})),
               const SizedBox(height: 8),
               Text(zone),
@@ -4004,7 +4162,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<void> toggleNotifications(bool enabled) async {
     try {
       if (enabled && !await notices.requestPermission()) {
-        message('通知の許可が必要です。端末の設定を確認してください。');
+        message(strings.notificationPermissionHelp);
         return;
       }
       await setting('notifications', enabled ? '1' : '0');
@@ -4023,83 +4181,183 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ],
           child: choice(label, value, values, change));
 
-  Widget slotTableHeader() => LayoutBuilder(builder: (ctx, size) {
-        final large = size.maxWidth >= 650;
-        return Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 4),
-            child: Row(children: [
-              SizedBox(width: large ? 76 : 36),
-              const Expanded(
-                  child: Center(
-                      child: Text('開始', style: TextStyle(fontSize: 16)))),
-              SizedBox(width: large ? 120 : 52),
-              const Expanded(
-                  child: Center(
-                      child: Text('終了', style: TextStyle(fontSize: 16)))),
-              SizedBox(width: large ? 92 : 44)
-            ]));
-      });
+  ({double width, bool compact}) slotLabelLayout(
+    BuildContext context,
+    double width,
+  ) {
+    final large = width >= 650;
+    final style = DefaultTextStyle.of(
+      context,
+    ).style.copyWith(fontSize: large ? 22 : 15);
+    double measure(String value, TextStyle textStyle) {
+      final painter = TextPainter(
+        text: TextSpan(text: value, style: textStyle),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1,
+      )..layout();
+      final result = painter.width;
+      painter.dispose();
+      return result;
+    }
+
+    double widest(Iterable<String> labels, TextStyle textStyle) => labels.fold(
+      0.0,
+      (previous, label) => max(previous, measure(label, textStyle)),
+    );
+    final full = max(
+      large ? 76.0 : 36.0,
+      widest(
+            data.slots.map((slot) => strings.timeSlotNumber(slot['position'])),
+            style,
+          ) +
+          12,
+    );
+    final timeStyle = style.copyWith(fontSize: large ? 22 : 16);
+    final timeWidth =
+        widest(
+          data.slots.expand(
+            (slot) => [
+              clock(slot['start_minute'] as int),
+              clock(slot['end_minute'] as int),
+            ],
+          ),
+          timeStyle,
+        ) +
+        8;
+    final available = max(
+      36.0,
+      width - (large ? 120 : 52) - (large ? 92 : 44) - timeWidth * 2,
+    );
+    if (full <= available) return (width: full, compact: false);
+    final compact =
+        widest(data.slots.map((slot) => '${slot['position']}'), style) + 12;
+    return (width: min(available, max(36.0, compact)), compact: true);
+  }
+
+  Widget slotTableHeader() => LayoutBuilder(
+    builder: (ctx, size) {
+      final large = size.maxWidth >= 650;
+      return Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 4),
+        child: Row(
+          children: [
+            SizedBox(width: slotLabelLayout(ctx, size.maxWidth).width),
+            Expanded(
+              child: Center(
+                child: Text(strings.start, style: TextStyle(fontSize: 16)),
+              ),
+            ),
+            SizedBox(width: large ? 120 : 52),
+            Expanded(
+              child: Center(
+                child: Text(strings.end, style: TextStyle(fontSize: 16)),
+              ),
+            ),
+            SizedBox(width: large ? 92 : 44),
+          ],
+        ),
+      );
+    },
+  );
   Widget slotSettings(DbRow slot) => ContextActions(
-      desktop: desktop,
-      actions: [
-        ContextAction('開始時刻を変更', () => editSlotTime(slot, true)),
-        ContextAction('終了時刻を変更', () => editSlotTime(slot, false)),
-        ContextAction(
-            'コマを削除', data.slots.length <= 1 ? null : () => deleteSlot(slot))
-      ],
-      child: LayoutBuilder(builder: (ctx, size) {
+    desktop: desktop,
+    actions: [
+      ContextAction(strings.changeStartTime, () => editSlotTime(slot, true)),
+      ContextAction(strings.changeEndTime, () => editSlotTime(slot, false)),
+      ContextAction(
+        strings.deleteTimeSlot,
+        data.slots.length <= 1 ? null : () => deleteSlot(slot),
+      ),
+    ],
+    child: LayoutBuilder(
+      builder: (ctx, size) {
         final large = size.maxWidth >= 650;
+        final labelLayout = slotLabelLayout(ctx, size.maxWidth);
         Widget button(bool start) => Expanded(
-            child: Center(
-                child: SizedBox(
-                    width: large ? 112 : 76,
-                    height: large ? 48 : 40,
-                    child: TextButton(
-                        key: ValueKey(
-                            'slot-${slot['id']}-${start ? 'start' : 'end'}'),
-                        style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            backgroundColor: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: .06)),
-                        onPressed: () => editSlotTime(slot, start),
-                        child: Text(
-                            clock(slot[start ? 'start_minute' : 'end_minute']
-                                as int),
-                            style: TextStyle(fontSize: large ? 22 : 16))))));
+          child: Center(
+            child: SizedBox(
+              width: large ? 112 : 76,
+              height: large ? 48 : 40,
+              child: TextButton(
+                key: ValueKey('slot-${slot['id']}-${start ? 'start' : 'end'}'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: .06),
+                ),
+                onPressed: () => editSlotTime(slot, start),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    clock(slot[start ? 'start_minute' : 'end_minute'] as int),
+                    style: TextStyle(fontSize: large ? 22 : 16),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
         return Padding(
-            padding: EdgeInsets.symmetric(vertical: large ? 12 : 8),
-            child: Row(children: [
+          padding: EdgeInsets.symmetric(vertical: large ? 12 : 8),
+          child: Row(
+            children: [
               SizedBox(
-                  width: large ? 76 : 36,
-                  child: Center(
-                      child: Text('${slot['position']}限',
-                          style: TextStyle(fontSize: large ? 22 : 15)))),
+                width: labelLayout.width,
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      labelLayout.compact
+                          ? '${slot['position']}'
+                          : strings.timeSlotNumber(slot['position']),
+                      key: ValueKey('slot-${slot['id']}-label'),
+                      semanticsLabel: strings.timeSlotNumber(slot['position']),
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(fontSize: large ? 22 : 15),
+                    ),
+                  ),
+                ),
+              ),
               button(true),
               SizedBox(
-                  width: large ? 120 : 52,
-                  child: Center(
-                      child: Text(
-                          '${(slot['end_minute'] as int) - (slot['start_minute'] as int)}分',
-                          style: TextStyle(fontSize: large ? 20 : 13)))),
+                width: large ? 120 : 52,
+                child: Center(
+                  child: Text(
+                    strings.minutesValue(
+                      (slot['end_minute'] as int) -
+                          (slot['start_minute'] as int),
+                    ),
+                    style: TextStyle(fontSize: large ? 20 : 13),
+                  ),
+                ),
+              ),
               button(false),
               SizedBox(width: large ? 28 : 4),
               SizedBox(
-                  width: large ? 64 : 40,
-                  height: large ? 64 : 52,
-                  child: IconButton(
-                      tooltip: '${slot['position']}限を削除',
-                      onPressed: data.slots.length <= 1
-                          ? null
-                          : () => deleteSlot(slot),
-                      icon: Icon(Icons.delete_outline, size: large ? 28 : 22)))
-            ]));
-      }));
+                width: large ? 64 : 40,
+                height: large ? 64 : 52,
+                child: IconButton(
+                  tooltip: strings.deleteSlotNumber(slot['position']),
+                  onPressed: data.slots.length <= 1
+                      ? null
+                      : () => deleteSlot(slot),
+                  icon: Icon(Icons.delete_outline, size: large ? 28 : 22),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
   Future<void> editSlot([DbRow? row]) async {
     var start = row?['start_minute'] as int? ??
             min(1348, (data.slots.last['end_minute'] as int) + 10),
@@ -4108,24 +4366,24 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final position = row?['position'] as int? ?? data.slots.length + 1;
     await editForm(
         context,
-        '$position限の時間',
+      strings.slotTimeTitle(position),
         (ctx, set) => Column(children: [
               ListTile(
-                  title: Text('開始 ${clock(start)}'),
+                  title: Text(strings.startTimeValue(clock(start))),
                   onTap: () async {
                     final t = await pickTime(
                         ctx, TimeOfDay(hour: start ~/ 60, minute: start % 60));
                     if (t != null) set(() => start = t.hour * 60 + t.minute);
                   }),
               ListTile(
-                  title: Text('終了 ${clock(end)}'),
+                  title: Text(strings.endTimeValue(clock(end))),
                   onTap: () async {
                     final t = await pickTime(
                         ctx, TimeOfDay(hour: end ~/ 60, minute: end % 60));
                     if (t != null) set(() => end = t.hour * 60 + t.minute);
                   })
             ]), () async {
-      if (end <= start) throw const FormatException('終了時刻は開始時刻より後にしてください');
+      if (end <= start) throw FormatException(strings.endTimeAfterStart);
       await put('slots', {
         'id': row?['id'] ?? newId(),
         'position': position,
@@ -4141,13 +4399,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final value = slot[column] as int;
     final result = await pickTime(
         context, TimeOfDay(hour: value ~/ 60, minute: value % 60),
-        helpText: '${slot['position']}限の${start ? '開始' : '終了'}時刻');
+        helpText: strings.slotTimeHelp(
+        slot['position'],
+        start ? strings.start : strings.end,
+      ),
+    );
     if (result == null) return;
     final minute = result.hour * 60 + result.minute;
     final begin = start ? minute : slot['start_minute'] as int;
     final end = start ? slot['end_minute'] as int : minute;
     if (end <= begin) {
-      message('終了時刻は開始時刻より後にしてください');
+      message(strings.endTimeAfterStart);
       return;
     }
     await put('slots', {'id': slot['id'], column: minute});
@@ -4158,7 +4420,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         data
             .rows('session_changes')
             .any((m) => m['replacement_slot_id'] == slot['id'])) {
-      message('このコマを使う講義があります。先に授業を変更してください。');
+      message(strings.timeSlotInUse);
       return;
     }
     await commit(() {
@@ -4179,7 +4441,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         final folder = await widget.storage.chooseFolder();
         if (folder == null) return;
         if (await widget.storage.treeHasDatabase(folder)) {
-          message('書き出し先にuniversity.unitableがあります。空のフォルダーを選んでください。');
+          message(strings.exportFolderOccupied);
           return;
         }
         final temp =
@@ -4202,12 +4464,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ? target.path
             : '${target.path}.unitable';
         if (File(path).existsSync()) {
-          message('既存のファイルは上書きしません。別の名前を選んでください。');
+          message(strings.chooseAnotherFilename);
           return;
         }
         db.snapshot(path);
       }
-      message('データベースのコピーを書き出しました');
+      message(strings.databaseExported);
     } catch (e) {
       message(e.toString());
     }

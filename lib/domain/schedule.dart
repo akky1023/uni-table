@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import '../l10n/strings.dart';
 
 typedef DbRow = Map<String, dynamic>;
 
@@ -20,7 +21,15 @@ List<DbRow> ruleList(dynamic raw) =>
     (jsonDecode(raw as String? ?? '[]') as List)
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
-const weekdays = ['月', '火', '水', '木', '金', '土', '日'];
+List<String> get weekdays => [
+  strings.monday,
+  strings.tuesday,
+  strings.wednesday,
+  strings.thursday,
+  strings.friday,
+  strings.saturday,
+  strings.sunday,
+];
 
 class SchoolData {
   final Map<String, List<DbRow>> tables;
@@ -369,12 +378,16 @@ List<PlannedNotice> planNotifications(SchoolData data, DateTime now,
         result.add(PlannedNotice(
             'class:${session.key}',
             session.course['name'] as String,
-            '${clock(session.slot['start_minute'] as int)}から・教室 ${session.room.isEmpty ? '未登録' : session.room}',
+            strings.classNoticeBody(
+              clock(session.slot['start_minute'] as int),
+              session.room.isEmpty ? strings.notRegistered : session.room,
+            ),
             at));
       }
       if (session.course['check_tasks'] == 1 && session.end.isAfter(now)) {
-        result.add(PlannedNotice('check:${session.key}', '課題を確認',
-            '${session.course['name']}の課題はありましたか？', session.end,
+        result.add(PlannedNotice('check:${session.key}',
+            strings.checkAssignments,
+            strings.checkAssignmentsBody(session.course['name']), session.end,
             courseId: session.course['id'] as String));
       }
     }
@@ -392,7 +405,11 @@ List<PlannedNotice> planNotifications(SchoolData data, DateTime now,
         result.add(PlannedNotice(
             'task:${task['id']}:$i',
             task['title'] as String,
-            '期限 ${dayKey(due)} ${clock(due.hour * 60 + due.minute)}・${task['destination']}',
+            strings.deadlineNoticeBody(
+              dayKey(due),
+              clock(due.hour * 60 + due.minute),
+              task['destination'],
+            ),
             at));
       }
     }

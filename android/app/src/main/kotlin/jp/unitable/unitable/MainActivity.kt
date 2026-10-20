@@ -36,7 +36,7 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "unitable/storage")
             .setMethodCallHandler { call, result ->
                 if (call.method in listOf("pickDocument", "createDocument")) {
-                    if (picker != null) { result.error("busy", "ファイル選択中です", null); return@setMethodCallHandler }
+                    if (picker != null) { result.error("storagePickerBusy", null, null); return@setMethodCallHandler }
                     picker = result
                     val create = call.method == "createDocument"
                     val intent = Intent(if (create) Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT).apply {
@@ -57,29 +57,18 @@ class MainActivity : FlutterActivity() {
                             val uri = Uri.parse(requireNotNull(call.argument<String>("uri")))
                             val target = File(requireNotNull(call.argument<String>("path")))
                             if (call.method == "readDocument") {
-                                requireNotNull(contentResolver.openInputStream(uri)).use { input ->
-                                    target.outputStream().use { input.copyTo(it); it.fd.sync() }
-                                }
-                                require(target.length() > 0) { "ファイルが空です。" }
+                                readDocument(uri, target)
+                                require(target.length() > 0) { throw StorageFailure("storageEmptyFile") }
                             } else {
-                                val bytes = target.readBytes()
-                                val original = contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                                try {
-                                    requireNotNull(contentResolver.openOutputStream(uri, "rwt")).use { it.write(bytes); it.flush() }
-                                    val saved = requireNotNull(contentResolver.openInputStream(uri)).use { it.readBytes() }
-                                    require(saved.contentEquals(bytes)) { "書き込んだデータを検証できません。" }
-                                } catch (e: Exception) {
-                                    if (original != null) try { contentResolver.openOutputStream(uri, "rwt")?.use { it.write(original); it.flush() } } catch (_: Exception) { }
-                                    throw e
-                                }
+                                writeDocument(uri, target)
                             }
                             runOnUiThread { result.success(null) }
-                        } catch (e: Exception) { runOnUiThread { result.error("storage", e.message, null) } }
+                        } catch (e: Exception) { runOnUiThread { result.error((e as? StorageFailure)?.code ?: "storage", e.message, null) } }
                     }
                     return@setMethodCallHandler
                 }
                 if (call.method == "pickDirectory") {
-                    if (picker != null) { result.error("busy", "フォルダー選択中です", null); return@setMethodCallHandler }
+                    if (picker != null) { result.error("storagePickerBusy", null, null); return@setMethodCallHandler }
                     picker = result
                     val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
@@ -96,43 +85,41 @@ class MainActivity : FlutterActivity() {
                     try {
                         val uri = Uri.parse(requireNotNull(call.argument<String>("tree")))
                         val tree = requireNotNull(DocumentFile.fromTreeUri(this, uri))
-                        require(tree.canRead() && tree.canWrite()) { "フォルダーへの読み書き権限がありません。再度選択してください。" }
+                        require(tree.canRead() && tree.canWrite()) { throw StorageFailure("storageFolderPermission") }
                         // Recover a crash between moving the old snapshot and publishing the new one.
                         var current = tree.findFile(filename)
                         if (current == null) {
                             val previous = tree.findFile("$filename.previous")
                             if (previous != null) {
-                                require(previous.renameTo(filename)) { "前回の保存ファイルを復元できません。" }
+                                require(previous.renameTo(filename)) { throw StorageFailure("storageRecoveryFailed") }
                                 current = tree.findFile(filename)
                             }
                         }
                         val value: Any? = when (call.method) {
                             "hasDatabase" -> current != null
                             "readDatabase" -> {
-                                val document = requireNotNull(current) { "${filename}がありません。" }
+                                val document = requireNotNull(current) { throw StorageFailure("storageMissingDatabase") }
                                 val target = File(requireNotNull(call.argument<String>("path")))
-                                contentResolver.openInputStream(document.uri).use { input ->
-                                    requireNotNull(input).use { stream -> target.outputStream().use { stream.copyTo(it); it.fd.sync() } }
-                                }
-                                require(target.length() > 0) { "データベースが空です。" }
+                                readDocument(document.uri, target)
+                                require(target.length() > 0) { throw StorageFailure("storageEmptyDatabase") }
                                 null
                             }
                             else -> {
                                 val source = File(requireNotNull(call.argument<String>("path")))
-                                require(source.exists() && source.length() > 0) { "保存するデータがありません。" }
+                                require(source.exists() && source.length() > 0) { throw StorageFailure("storageNoData") }
+                                StorageStreams.checkSize(source.length())
                                 val pending = requireNotNull(tree.createFile("application/octet-stream", "$filename.pending-${UUID.randomUUID()}"))
                                 var published = false
                                 try {
                                     requireNotNull(contentResolver.openOutputStream(pending.uri, "wt")).use { output ->
-                                        source.inputStream().use { it.copyTo(output) }; output.flush()
+                                        source.inputStream().use { StorageStreams.copy(it, output) }; output.flush()
                                     }
-                                    val bytes = requireNotNull(contentResolver.openInputStream(pending.uri)).use { it.readBytes() }
-                                    require(bytes.contentEquals(source.readBytes())) { "書き込んだデータを検証できません。" }
-                                    tree.findFile("$filename.previous")?.let { require(it.delete()) { "以前のコピーを整理できません。" } }
-                                    if (current != null) require(current.renameTo("$filename.previous")) { "このフォルダーは安全な更新に必要なファイル名変更に対応していません。別のローカルフォルダーを選んでください。" }
+                                    verifyDocument(pending.uri, source)
+                                    tree.findFile("$filename.previous")?.let { require(it.delete()) { throw StorageFailure("storageCleanupFailed") } }
+                                    if (current != null) require(current.renameTo("$filename.previous")) { throw StorageFailure("storageRenameUnsupported") }
                                     if (!pending.renameTo(filename)) {
                                         current?.renameTo(filename)
-                                        error("データベースの保存を完了できません。")
+                                        throw StorageFailure("storageSaveFailed")
                                     }
                                     published = true
                                     tree.findFile("$filename.previous")?.delete()
@@ -141,10 +128,50 @@ class MainActivity : FlutterActivity() {
                             }
                         }
                         runOnUiThread { result.success(value) }
-                    } catch (e: Exception) { runOnUiThread { result.error("storage", e.message, null) } }
+                    } catch (e: Exception) { runOnUiThread { result.error((e as? StorageFailure)?.code ?: "storage", e.message, null) } }
                 }
             }
     }
+
+    private fun readDocument(uri: Uri, target: File) {
+        try {
+            requireNotNull(contentResolver.openInputStream(uri)).use { input ->
+                target.outputStream().use { StorageStreams.copy(input, it); it.fd.sync() }
+            }
+        } catch (e: Exception) {
+            target.delete() // Never retain a partial or oversized import.
+            throw e
+        }
+    }
+
+    private fun verifyDocument(uri: Uri, source: File) {
+        val expected = source.inputStream().use { StorageStreams.digest(it) }
+        val actual = requireNotNull(contentResolver.openInputStream(uri)).use { StorageStreams.digest(it) }
+        require(expected.contentEquals(actual)) { throw StorageFailure("storageVerificationFailed") }
+    }
+
+    private fun writeDocument(uri: Uri, source: File) {
+        StorageStreams.checkSize(source.length())
+        // Obtain a bounded recovery copy before touching the original document.
+        val backup = File.createTempFile("unitable-backup-", ".tmp", cacheDir)
+        try {
+            readDocument(uri, backup)
+            try {
+                requireNotNull(contentResolver.openOutputStream(uri, "rwt")).use { output ->
+                    source.inputStream().use { StorageStreams.copy(it, output) }; output.flush()
+                }
+                verifyDocument(uri, source)
+            } catch (e: Exception) {
+                try {
+                    requireNotNull(contentResolver.openOutputStream(uri, "rwt")).use { output ->
+                        backup.inputStream().use { StorageStreams.copy(it, output) }; output.flush()
+                    }
+                } catch (_: Exception) { /* Working DB remains available for retry. */ }
+                throw e
+            }
+        } finally { backup.delete() }
+    }
+
     @Deprecated("Android compatibility callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -156,12 +183,12 @@ class MainActivity : FlutterActivity() {
             val uri = data.data!!
             if (requestCode != 7201) {
                 val document = requireNotNull(DocumentFile.fromSingleUri(this, uri))
-                require(document.name?.lowercase()?.endsWith(".unitable") == true) { ".unitableファイルを指定してください。" }
-                require(document.canRead() && document.canWrite()) { "読み書きできるファイルを指定してください。" }
+                require(document.name?.lowercase()?.endsWith(".unitable") == true) { throw StorageFailure("storageSelectFile") }
+                require(document.canRead() && document.canWrite()) { throw StorageFailure("storageFilePermission") }
             }
             val flags = data.flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             contentResolver.takePersistableUriPermission(uri, flags)
             result.success(uri.toString())
-        } catch (e: Exception) { result.error("permission", e.message, null) }
+        } catch (e: Exception) { result.error((e as? StorageFailure)?.code ?: "permission", e.message, null) }
     }
 }

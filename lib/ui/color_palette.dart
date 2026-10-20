@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'calendar_style.dart';
+import '../l10n/strings.dart';
 import 'app_palette.dart';
+import 'calendar_style.dart';
 
 class ColorPalette extends StatelessWidget {
   final int color;
@@ -44,7 +45,7 @@ class ColorPalette extends StatelessWidget {
             Semantics(
                 button: true,
                 selected: color == value,
-                label: '色 ${value.toRadixString(16)}',
+                label: strings.colorNumber(value.toRadixString(16)),
                 child: InkWell(
                     key: ValueKey('palette-$value'),
                     borderRadius: BorderRadius.circular(4),
@@ -70,7 +71,7 @@ class ColorPalette extends StatelessWidget {
                             : null)))
         ]),
         Row(children: [
-          const Text('透明度'),
+          Text(strings.opacity),
           Expanded(
               child: Slider(
                   value: ((color >> 24) & 255).toDouble(),
@@ -78,7 +79,10 @@ class ColorPalette extends StatelessWidget {
                   max: 255,
                   divisions: 255,
                   onChanged: (v) =>
-                      onChanged((v.round() << 24) | (color & 0xffffff))))
-        ]),
-      ]);
+                      onChanged((v.round() << 24) | (color & 0xffffff))),
+          ),
+      ],
+      ),
+    ],
+  );
 }

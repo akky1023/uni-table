@@ -144,3 +144,17 @@ SHA-256だけでは、ファイルとチェックサムが一緒に置き換え�
 - [Androidのバージョン管理](https://developer.android.com/studio/publish/versioning)
 
 アプリ本体は[MIT License](LICENSE)です。同梱フォントなどのライセンス表記を維持してください。
+
+## 多言語対応
+
+表示文言は `lib/l10n/app_ja.arb` と `app_en.arb` で管理します。Flutter標準の `gen-l10n` を使用し、生成結果は `lib/l10n/generated/` に含めます。
+
+- 文言を変更・追加したら両方のARBを更新し、`flutter gen-l10n` を実行してください。生成されたDartファイルは直接編集しません。
+- 可変の科目名・日付・件数などはARBのプレースホルダーで渡し、翻訳文の中で並べ替えられるようにします。
+- 言語を追加するときは `app_<言語コード>.arb`、設定画面の選択肢、`Storage.setLanguage` の対応言語を追加し、翻訳テストを更新します。
+- 初期設定は端末の言語に従い、未対応言語では日本語を表示します。「設定 → 一般 → 言語」で端末に従う／日本語／Englishを選べます。設定は端末内に保存され、`.unitable` の書き出しには含めません。
+- `lib/l10n/strings.dart` は画面・通知・ストレージエラーで同じ言語を使うための窓口です。言語変更時は画面を再描画し、予約済み通知も再構築します。
+- 科目名・メモ・登録済みの期間名や祝日名は保存済みデータとして扱い、自動翻訳しません。祝日取り込みは引き続き日本の祝日を対象にします。
+- Androidのアプリ名は `res/values/strings.xml` と `res/values-en/strings.xml`、ファイル操作エラーはネイティブ側のコードとDart側の翻訳で管理します。
+
+確認には `flutter analyze` と `flutter test` を使います。`test/localization_test.dart` では翻訳の網羅性、言語設定の永続化、端末言語の変更、画面上の切り替え、通知文面、ユーザーデータの保持を検証します。

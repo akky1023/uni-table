@@ -1,3 +1,4 @@
+import '../l10n/strings.dart';
 import 'schedule.dart';
 
 /// Different meetings can retain distinct course records with the same name.
@@ -10,7 +11,7 @@ Map<String, String> taskCourseChoices(SchoolData data, String selected) {
   final current = data.find('courses', selected);
   if (current != null) byName[current['name'] as String] = current;
   return {
-    '': '未指定',
+    '': strings.unspecified,
     for (final row in byName.values) row['id'] as String: row['name'] as String
   };
 }

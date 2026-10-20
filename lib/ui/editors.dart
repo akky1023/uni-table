@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dialogs.dart';
-import 'accessibility.dart';
 import '../domain/schedule.dart';
+import '../l10n/strings.dart';
+import 'accessibility.dart';
+import 'dialogs.dart';
 
 TextEditingController text(dynamic value) =>
     TextEditingController(text: value?.toString() ?? '');
@@ -23,14 +24,16 @@ Widget field(TextEditingController controller, String label,
                   : TextInputType.text,
           decoration: InputDecoration(labelText: label, hintText: hint),
           validator: (v) {
-            if (required && (v == null || v.trim().isEmpty)) return '入力してください';
-            if (number &&
+            if (required && (v == null || v.trim().isEmpty)) {
+        return strings.requiredField;
+      }
+      if (number &&
                 v != null &&
                 v.isNotEmpty &&
                 (int.tryParse(v) == null ||
                     int.parse(v) < -1 ||
                     int.parse(v) > 2147483647)) {
-              return '-1～2147483647の整数を入力してください';
+              return strings.integerRange;
             }
             return null;
           }),
@@ -66,7 +69,7 @@ Future<DateTime?> pickDate(BuildContext context, DateTime initial,
       context: context,
       barrierDismissible: true,
       builder: (ctx) => AlertDialog(
-              title: const Text('日付を選択'),
+              title: Text(strings.selectDate),
               content: SizedBox(
                   width: 340,
                   height: 320,
@@ -78,10 +81,10 @@ Future<DateTime?> pickDate(BuildContext context, DateTime initial,
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('キャンセル')),
+                    child: Text(strings.cancel)),
                 FilledButton(
                     onPressed: () => Navigator.pop(ctx, selected),
-                    child: const Text('決定'))
+                    child: Text(strings.confirm))
               ]));
 }
 
@@ -142,11 +145,11 @@ Widget dateField(
         suffixIcon: time
             ? Row(mainAxisSize: MainAxisSize.min, children: [
                 IconButton(
-                    tooltip: '日付を選ぶ',
+                    tooltip: strings.pickDate,
                     onPressed: changeDate,
                     icon: const Icon(Icons.calendar_today_outlined, size: 18)),
                 IconButton(
-                    tooltip: '時刻を選ぶ',
+                    tooltip: strings.pickTime,
                     onPressed: changeTime,
                     icon: const Icon(Icons.schedule, size: 18)),
               ])
@@ -161,11 +164,10 @@ Widget dateField(
       ),
       validator: (v) => time
           ? (parseDeadline(v ?? '') == null
-              ? 'YYYY-MM-DD HH:mmで入力してください'
-              : null)
+              ? strings.dateTimeFormat : null)
           : !optional && (v?.isEmpty ?? true)
-              ? '日付を選んでください'
-              : null,
+              ? strings.dateRequired
+          : null,
       onTap: time ? null : changeDate,
       onChanged: (_) => onChanged?.call(),
     ),
@@ -246,8 +248,8 @@ class _HistoryFieldState extends State<HistoryField> {
                               Theme.of(context).inputDecorationTheme.fillColor),
                       validator: (v) =>
                           widget.required && (v == null || v.trim().isEmpty)
-                              ? '入力してください'
-                              : null),
+                              ? strings.requiredField
+                  : null),
                   if (focus.hasFocus && options.isNotEmpty)
                     SizedBox(
                         height: 48,
@@ -311,15 +313,15 @@ Future<bool?> editor(
           final answer = await showAppDialog<String>(
               context: ctx,
               builder: (c) =>
-                  AlertDialog(title: const Text('変更を保存しますか？'), actions: [
+                  AlertDialog(title: Text(strings.saveChanges), actions: [
                     FilledButton(
                         style: FilledButton.styleFrom(
                             backgroundColor: Theme.of(c).colorScheme.error),
                         onPressed: () => Navigator.pop(c, 'discard'),
-                        child: const Text('編集を破棄')),
+                        child: Text(strings.discardChanges)),
                     FilledButton(
                         onPressed: () => Navigator.pop(c, 'save'),
-                        child: const Text('保存')),
+                        child: Text(strings.save)),
                   ]));
           asking = false;
           if (!ctx.mounted) return;
@@ -357,16 +359,16 @@ Future<bool?> editor(
                         final approved = await showAppDialog<bool>(
                             context: ctx,
                             builder: (c) => AlertDialog(
-                                    title: const Text('削除しますか？'),
+                                    title: Text(strings.confirmDelete),
                                     actions: [
                                       TextButton(
                                           onPressed: () =>
                                               Navigator.pop(c, false),
-                                          child: const Text('戻る')),
+                                          child: Text(strings.back)),
                                       TextButton(
                                           onPressed: () =>
                                               Navigator.pop(c, true),
-                                          child: const Text('削除')),
+                                          child: Text(strings.delete)),
                                     ]));
                         if (approved != true || !ctx.mounted) return;
                         set(() {
@@ -385,13 +387,13 @@ Future<bool?> editor(
                           }
                         }
                       },
-                child: const Text('削除')),
+                child: Text(strings.delete)),
           TextButton(
               onPressed: busy ? null : () => Navigator.pop(ctx, false),
-              child: const Text('キャンセル')),
+              child: Text(strings.cancel)),
           FilledButton(
               onPressed: busy ? null : submit,
-              child: Text(busy ? '保存中…' : '保存')),
+              child: Text(busy ? strings.saving : strings.save)),
         ];
         Widget result;
         if (fullScreen) {
@@ -474,25 +476,25 @@ Future<bool?> editor(
 String ruleLabel(DbRow r) {
   switch (r['kind']) {
     case 'hours':
-      return '${r['amount']}時間前';
+      return strings.hoursBefore(r['amount']);
     case 'days':
-      return '${r['amount']}日前';
+      return strings.daysBefore(r['amount']);
     case 'weeks':
-      return '${r['amount']}週間前';
+      return strings.weeksBefore(r['amount']);
     case 'week_clock':
-      return '${r['amount']}週間前の ${clock(r['minute'] as int)}';
+      return strings.weeksBeforeAt(r['amount'], clock(r['minute'] as int));
     case 'day_clock':
-      return '${r['amount']}日前の ${clock(r['minute'] as int)}';
+      return strings.daysBeforeAt(r['amount'], clock(r['minute'] as int));
     case 'previous_sunday':
-      return '直前の日曜日の ${clock(r['minute'] as int)}';
+      return strings.previousSundayAt(clock(r['minute'] as int));
     case 'previous_holiday':
       return r['minute'] != null
-          ? '直前の休日の ${clock(r['minute'] as int)}'
-          : '${r['amount']}回前の休日';
+          ? strings.previousHolidayAt(clock(r['minute'] as int))
+          : strings.holidaysBefore(r['amount']);
     case 'absolute':
-      return '指定日時 ${r['at']}';
+      return strings.fixedNoticeTime(r['at']);
     default:
-      return '不明な通知';
+      return strings.unknownNotification;
   }
 }
 
@@ -503,7 +505,7 @@ Future<DbRow?> addRule(BuildContext context,
   DbRow? result;
   await editor(
       context,
-      '通知タイミング',
+    strings.notificationTiming,
       (ctx, set) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -515,27 +517,29 @@ Future<DbRow?> addRule(BuildContext context,
                       }),
                   child: Column(children: [
                     for (final entry in {
-                      'hours': '時間前',
-                      'days': '日前',
-                      'weeks': '週間前',
-                      'previous_holiday': '回前の休日'
-                    }.entries)
+                      'hours': strings.hoursBeforeUnit,
+                      'days': strings.daysBeforeUnit,
+                      'weeks': strings.weeksBeforeUnit,
+                      'previous_holiday': strings.holidaysBeforeUnit,
+              }.entries)
                       RadioListTile<String>(
                           contentPadding: EdgeInsets.zero,
                           dense: true,
                           value: entry.key,
                           title: Text(entry.value)),
-                  ])),
-              const Text('の'),
+                  ],
+          ),
+        ),
+        Text(strings.atTime),
               const SizedBox(height: 8),
               TextFormField(
                 controller: time,
                 enabled: kind == 'days' || kind == 'weeks',
                 decoration: InputDecoration(
                     labelText: 'hh:mm',
-                    hintText: '省略すると期限と同じ時刻',
+                    hintText: strings.deadlineTimeHint,
                     suffixIcon: IconButton(
-                      tooltip: '通知時刻を選ぶ',
+                      tooltip: strings.pickNotificationTime,
                       onPressed: kind == 'days' || kind == 'weeks'
                           ? () async {
                               final match = RegExp(r'^(\d{1,2}):(\d{2})$')
@@ -559,15 +563,15 @@ Future<DbRow?> addRule(BuildContext context,
                     )),
               ),
               if (kind == 'previous_holiday')
-                const Padding(
+          Padding(
                     padding: EdgeInsets.only(top: 12),
                     child:
-                        Text('期限の日より前の休日を数え、期限と同じ時刻に通知します。休日に含める日は設定で変更できます。')),
+                        Text(strings.holidaysBeforeHelp)),
             ],
           ), () async {
     final count = int.parse(amount.text);
     if (count < 0 || kind == 'previous_holiday' && count == 0) {
-      throw const FormatException('休日は1以上、それ以外は0以上を指定してください');
+      throw FormatException(strings.notificationOffsetRange);
     }
     int? minute;
     if ((kind == 'days' || kind == 'weeks') && time.text.isNotEmpty) {
@@ -575,7 +579,7 @@ Future<DbRow?> addRule(BuildContext context,
       if (match == null ||
           int.parse(match[1]!) > 23 ||
           int.parse(match[2]!) > 59) {
-        throw const FormatException('00:00～23:59で入力してください');
+        throw FormatException(strings.timeFormat);
       }
       minute = int.parse(match[1]!) * 60 + int.parse(match[2]!);
     }

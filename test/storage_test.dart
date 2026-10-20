@@ -78,7 +78,7 @@ void main() {
     final file = '${folder.path}/v2.unitable';
     final legacy = sqlite3.open(file);
     legacy.execute(schema
-        .replaceFirst(', color INTEGER', '')
+        .replaceFirst(', color INTEGER);', ');')
         .replaceFirst(', exam_day INTEGER NOT NULL DEFAULT 0', ''));
     legacy.execute(
         'CREATE TABLE settings (id TEXT PRIMARY KEY, value TEXT NOT NULL)');

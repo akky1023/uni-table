@@ -1,12 +1,13 @@
-import 'appearance.dart';
-import 'app_palette.dart';
 import 'dart:async';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide ContextAction;
 import 'package:flutter/rendering.dart';
-import 'package:flutter/gestures.dart';
 import '../domain/schedule.dart';
-import 'context_actions.dart';
+import '../l10n/strings.dart';
+import 'app_palette.dart';
+import 'appearance.dart';
 import 'calendar_style.dart';
+import 'context_actions.dart';
 
 const holidayRed = Color(0xffd45459);
 bool isNationalHoliday(DbRow event) =>
@@ -190,7 +191,7 @@ class _AnnualCalendarState extends State<AnnualCalendar> {
                         }
                       });
                     },
-                    child: Text(showPast ? '過去を隠す' : '過去を表示'))),
+                    child: Text(showPast ? strings.hidePast : strings.showPast))),
           Row(children: [
             for (var i = 0; i < 7; i++)
               Expanded(
@@ -206,9 +207,12 @@ class _AnnualCalendarState extends State<AnnualCalendar> {
               for (var col = 0; col < 7; col++)
                 Expanded(
                     child: cell(
-                        shiftDay(widget.start, row * 7 + col - offset), last))
-            ]),
-        ]));
+                        shiftDay(widget.start, row * 7 + col - offset), last),
+                  ),
+              ]),
+        ],
+      ),
+    );
     if (!widget.editing || widget.desktop) return calendar;
     return LayoutBuilder(
         builder: (context, size) => RawGestureDetector(

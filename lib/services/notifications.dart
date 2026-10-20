@@ -1,12 +1,13 @@
-import 'dart:io';
-import 'dart:ffi';
 import 'dart:convert';
-import 'package:flutter/services.dart';
+import 'dart:ffi';
+import 'dart:io';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as zones;
 import 'package:timezone/timezone.dart' as tz;
 import '../domain/schedule.dart';
+import '../l10n/strings.dart';
 
 class NotificationService {
   static const testingEnabled = bool.fromEnvironment('UNITABLE_NOTIFICATION_TEST');
@@ -16,7 +17,7 @@ class NotificationService {
   bool get isAndroid => Platform.isAndroid;
   final plugin = FlutterLocalNotificationsPlugin();
   bool initialized = false;
-  String status = '通知はオフです';
+  String status = strings.notificationsOff;
   DateTime? scheduledThrough;
   late final bool available = _available();
   bool _available() {
@@ -39,10 +40,10 @@ class NotificationService {
     requireWindowsPackage();
     zones.initializeTimeZones();
     await plugin.initialize(
-      const InitializationSettings(
+      InitializationSettings(
         android: AndroidInitializationSettings('ic_notification'),
         windows: WindowsInitializationSettings(
-          appName: 'うに時間割',
+          appName: strings.appName,
           appUserModelId: 'UniTable.Local',
           guid: '5375b44a-1256-4df7-af18-18bd72c7871b',
         ),
@@ -98,28 +99,31 @@ class NotificationService {
 
   NotificationDetails detailsFor(PlannedNotice notice) => NotificationDetails(
       android: AndroidNotificationDetails(
-          'unitable_schedule', '講義・課題',
-          channelDescription: '講義の教室と課題の期限',
+          'unitable_schedule',
+      strings.notificationChannel,
+          channelDescription: strings.notificationChannelDescription,
           importance: Importance.high,
           priority: Priority.high,
-          actions: notice.courseId == null ? null : const [
-            AndroidNotificationAction(addTaskAction, '課題を追加',
+          actions: notice.courseId == null ? null : [
+            AndroidNotificationAction(addTaskAction,
+                strings.addAssignment,
                 showsUserInterface: true),
           ]),
       windows: WindowsNotificationDetails(
           actions: notice.courseId == null ? const [] : [
-            WindowsAction(content: '課題を追加',
+            WindowsAction(content: strings.addAssignment,
                 arguments: taskPayload(notice.courseId!)),
           ]));
 
   Future<bool> sendTestNotification(SchoolData data, DbRow course,
       {Duration delay = Duration.zero}) async {
-    if (!testingEnabled) throw StateError('通知テストはテストAPKで利用できます。');
+    if (!testingEnabled) throw StateError(strings.testApkOnly);
     if (!await requestPermission()) return false;
     final zone = tz.getLocation(data.setting('timezone', 'Asia/Tokyo'));
     final at = tz.TZDateTime.now(zone).add(delay);
-    final notice = PlannedNotice('test', '課題を確認（通知テスト）',
-        '${course['name']}の課題はありましたか？', at,
+    final notice = PlannedNotice('test',
+      strings.testNoticeTitle,
+      strings.checkAssignmentsBody(course['name']), at,
         courseId: course['id'] as String);
     final details = detailsFor(notice);
     final payload = taskPayload(notice.courseId!);
@@ -158,7 +162,7 @@ class NotificationService {
             int Function(
                 Pointer<Uint32>, Pointer<Uint16>)>('GetCurrentPackageFullName');
         if (getPackage(length, nullptr) != 122) {
-          throw StateError('Windowsの通知はMSIX版で有効にできます。MSIXとしてビルド・インストールしてください。');
+          throw StateError(strings.windowsNotificationsRequireMsix);
         }
       } finally {
         calloc.free(length);
@@ -181,14 +185,14 @@ class NotificationService {
   Future<void> rebuild(SchoolData data) async {
     try {
       if (!initialized && data.setting('notifications', '0') != '1') {
-        status = '通知はオフです';
+        status = strings.notificationsOff;
         scheduledThrough = null;
         return;
       }
       await initialize();
       if (data.setting('notifications', '0') != '1') {
         await plugin.cancelAll();
-        status = '通知はオフです';
+        status = strings.notificationsOff;
         scheduledThrough = null;
         return;
       }
@@ -216,7 +220,9 @@ class NotificationService {
         if (testingEnabled) {
           // App resume refills the timetable without cancelling a test alarm.
           for (final pending in await plugin.pendingNotificationRequests()) {
-            if (pending.id != testNotificationId) await plugin.cancel(pending.id);
+            if (pending.id != testNotificationId) {
+              await plugin.cancel(pending.id);
+            }
           }
         } else {
           await plugin.cancelAllPendingNotifications();
@@ -262,10 +268,16 @@ class NotificationService {
         lastScheduled = notice.at;
       }
       scheduledThrough = lastScheduled;
-      status =
-          '$scheduled件を予約済み${lastScheduled == null ? '' : '・${dayKey(lastScheduled)}まで'}${notices.length > 480 ? '（起動・画面復帰時に予約を補充）' : ''}${isAndroid && !exact ? '・正確な時刻の通知が未許可のため遅れる場合があります' : ''}';
+      status = strings.scheduledNotices(
+        scheduled,
+        lastScheduled == null
+            ? ''
+            : strings.scheduledThrough(dayKey(lastScheduled)),
+        notices.length > 480 ? strings.scheduleRefillHelp : '',
+        isAndroid && !exact ? strings.inexactAlarmWarning : '',
+      );
     } catch (e) {
-      status = '通知の設定に失敗しました: $e';
+      status = strings.notificationSetupFailed(e);
       rethrow;
     }
   }

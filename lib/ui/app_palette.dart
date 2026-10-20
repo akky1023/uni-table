@@ -1,43 +1,45 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../domain/schedule.dart';
+import '../l10n/strings.dart';
 
-const paletteGroups = {
-  '基本': {
-    'background': '背景',
-    'text': '文字',
-    'muted': '薄い文字',
-    'primary': 'アクセント',
-    'on_primary': 'アクセント上の文字',
-    'panel': 'メニューの背景',
-    'input': '入力欄',
-    'dialog': 'ポップアップ',
-    'accent_container': '選択部分',
-    'accent_text': '選択部分の文字',
-    'outline': '区切り線',
-    'holiday_text': '祝日・休業日の文字',
+Map<String, Map<String, String>> get paletteGroups => {
+  strings.basic: {
+    'background': strings.background,
+    'text': strings.text,
+    'muted': strings.mutedText,
+    'primary': strings.accent,
+    'on_primary': strings.onAccent,
+    'panel': strings.menuBackground,
+    'input': strings.inputField,
+    'dialog': strings.popup,
+    'accent_container': strings.selection,
+    'accent_text': strings.selectionText,
+    'outline': strings.divider,
+    'holiday_text': strings.holidayText,
   },
-  '時間割': {
-    'empty': '空き時間',
-    'lecture': '講義',
-    'exam': '試験',
-    'single': '単発講義',
-    'replacement': '代替日の講義',
-    'closure': '休業日',
-    'past': '過去の日付',
+  strings.timetable: {
+    'empty': strings.freeTime,
+    'lecture': strings.course,
+    'exam': strings.exam,
+    'single': strings.oneOffClass,
+    'replacement': strings.replacementClass,
+    'closure': strings.closure,
+    'past': strings.pastDates,
   },
-  '課題': {'task': '課題', 'task_selected': '選択中の課題'},
-  '年間予定': {
-    'calendar_past': '過去の日付',
-    'calendar_exam_day': '試験がある日',
-    'calendar_replacement_active': '代替日・講義あり',
-    'calendar_active': '講義がある日',
-    'calendar_national': '祝日',
-    'calendar_closure_period': '休業期間',
-    'calendar_holiday': '休日',
-    'calendar_exam_period': '試験期間',
-    'calendar_replacement': '代替日',
-    'calendar_teaching_period': '講義期間',
+  strings.assignments: {'task': strings.assignments, 'task_selected': strings.selectedAssignment,
+  },
+  strings.annualCalendar: {
+    'calendar_past': strings.pastDates,
+    'calendar_exam_day': strings.examDay,
+    'calendar_replacement_active': strings.replacementActive,
+    'calendar_active': strings.activeDay,
+    'calendar_national': strings.nationalHoliday,
+    'calendar_closure_period': strings.closurePeriod,
+    'calendar_holiday': strings.holiday,
+    'calendar_exam_period': strings.examPeriod,
+    'calendar_replacement': strings.replacementDay,
+    'calendar_teaching_period': strings.teachingPeriod,
   },
 };
 const periodTeachingColors = [
@@ -129,6 +131,16 @@ Map<String, int> paletteDefaults(bool dark) => {
         'accent_text': 0xffc5ecd9,
         'outline': 0xff354139,
         'holiday_text': 0xffffa1a8,
+        // Fade periods toward the background while preserving scheduled days.
+        for (final key in [
+          'calendar_teaching_period',
+          'calendar_replacement',
+          'calendar_exam_period',
+        ])
+          key: Color.alphaBlend(
+            darkTint(Color(lightPalette[key]!)).withValues(alpha: .2),
+            const Color(0xff141b17),
+          ).toARGB32(),
       },
     };
 
