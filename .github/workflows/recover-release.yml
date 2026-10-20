@@ -139,7 +139,7 @@ jobs:
           $predicate.buildDefinition.resolvedDependencies = @($predicate.buildDefinition.resolvedDependencies) + @($source)
           [IO.File]::WriteAllText((Join-Path $env:GITHUB_WORKSPACE '.tools/release-provenance.json'), (ConvertTo-Json -InputObject $predicate -Depth 30 -Compress), [Text.UTF8Encoding]::new($false))
       - name: Attest recovered release provenance
-        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           predicate-type: ${{ steps.provenance.outputs.predicate-type }}
           predicate-path: .tools/release-provenance.json
