@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 import '../domain/schedule.dart';
 import '../l10n/strings.dart';
+import 'database_security.dart';
 
 const applicationId = 0x554E4954;
 const tableNames = [
@@ -36,10 +37,16 @@ class UnitDatabase extends ChangeNotifier {
 
   static UnitDatabase open(String path,
       {void Function(Map<String, String>)? onLegacySettings}) {
+    checkDatabaseFileSize(path);
     final exists = File(path).existsSync() && File(path).lengthSync() > 0;
     final db = sqlite3.open(path);
     final localSettings = <String, String>{};
     try {
+      // Configure the connection before parsing any untrusted schema or rows.
+      db.config.setIntConfig(1010, 1); // SQLITE_DBCONFIG_DEFENSIVE
+      db.config.setIntConfig(1003, 0); // SQLITE_DBCONFIG_ENABLE_TRIGGER
+      db.config.setIntConfig(1015, 0); // SQLITE_DBCONFIG_ENABLE_VIEW
+      db.config.setIntConfig(1017, 0); // SQLITE_DBCONFIG_TRUSTED_SCHEMA
       if (exists) {
         if (db.select('PRAGMA application_id').first.values.first !=
             applicationId) {
@@ -49,6 +56,8 @@ class UnitDatabase extends ChangeNotifier {
             .contains(db.select('PRAGMA user_version').first.values.first)) {
           throw FormatException(strings.unsupportedDatabaseVersion);
         }
+        validateDatabaseSchema(db, schema, db.userVersion);
+        _checkRowCount(db);
         if (db.select('PRAGMA quick_check').first.values.first != 'ok') {
           throw FormatException(strings.databaseIntegrityFailed);
         }
@@ -57,6 +66,8 @@ class UnitDatabase extends ChangeNotifier {
       db.execute('PRAGMA journal_mode = DELETE');
       db.execute('PRAGMA synchronous = FULL');
       db.execute('PRAGMA busy_timeout = 5000');
+      final pageSize = db.select('PRAGMA page_size').single.values.single as int;
+      db.execute('PRAGMA max_page_count = ${maxDatabaseBytes ~/ pageSize}');
       if (!exists) {
         db.execute('BEGIN IMMEDIATE');
         try {
@@ -69,6 +80,7 @@ class UnitDatabase extends ChangeNotifier {
                 ['slot-$n', n, start, start + 90]);
           }
 
+          _checkRowCount(db);
           db.execute('COMMIT');
         } catch (_) {
           db.execute('ROLLBACK');
@@ -90,6 +102,7 @@ class UnitDatabase extends ChangeNotifier {
           db.execute(
               "DELETE FROM events WHERE id LIKE 'jp-holiday-%' AND kind = 'holiday'");
           db.execute('PRAGMA user_version = 2');
+          _checkRowCount(db);
           db.execute('COMMIT');
         } catch (_) {
           db.execute('ROLLBACK');
@@ -120,6 +133,7 @@ class UnitDatabase extends ChangeNotifier {
                 'ALTER TABLE day_changes ADD COLUMN exam_day INTEGER NOT NULL DEFAULT 0');
           }
           db.execute('PRAGMA user_version = 3');
+          _checkRowCount(db);
           db.execute('COMMIT');
         } catch (_) {
           db.execute('ROLLBACK');
@@ -149,6 +163,7 @@ class UnitDatabase extends ChangeNotifier {
                 'UPDATE events SET term_id=? WHERE id=?', [id, event['id']]);
           }
           db.execute('PRAGMA user_version = 4');
+          _checkRowCount(db);
           db.execute('COMMIT');
         } catch (_) {
           db.execute('ROLLBACK');
@@ -208,6 +223,7 @@ class UnitDatabase extends ChangeNotifier {
             }
           }
           db.execute('PRAGMA user_version = 5');
+          _checkRowCount(db);
           db.execute('COMMIT');
         } catch (_) {
           db.execute('ROLLBACK');
@@ -220,6 +236,7 @@ class UnitDatabase extends ChangeNotifier {
           db.execute(
               'CREATE TABLE event_ranges (id TEXT PRIMARY KEY, event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE, start_date TEXT NOT NULL, end_date TEXT NOT NULL CHECK(end_date>=start_date))');
           db.execute('PRAGMA user_version = 6');
+          _checkRowCount(db);
           db.execute('COMMIT');
         } catch (_) {
           db.execute('ROLLBACK');
@@ -232,6 +249,10 @@ class UnitDatabase extends ChangeNotifier {
       rethrow;
     }
   }
+
+  static void _checkRowCount(Database db) => checkDatabaseRowCount(db,
+      db.select("SELECT name FROM sqlite_master WHERE type='table'")
+          .map((row) => row['name'] as String).where(tableNames.contains));
 
   static UnitDatabase draftOf(UnitDatabase source) {
     final draft = UnitDatabase.open(':memory:');
@@ -303,6 +324,7 @@ class UnitDatabase extends ChangeNotifier {
   }
 
   void reload() {
+    _checkRowCount(db);
     data = SchoolData({
       'settings': [
         for (final entry in appSettings.entries)
@@ -322,6 +344,7 @@ class UnitDatabase extends ChangeNotifier {
     db.execute('BEGIN IMMEDIATE');
     try {
       action();
+      _checkRowCount(db);
       persistSettings?.call(appSettings);
       db.execute('COMMIT');
     } catch (_) {
@@ -376,6 +399,7 @@ class UnitDatabase extends ChangeNotifier {
   }
 
   void snapshot(String target) {
+    checkDatabaseFileSize(path);
     if (File(target).existsSync()) {
       throw FileSystemException(strings.fileAlreadyExists);
     }
@@ -720,6 +744,7 @@ Future<T?> invokeStorage<T>(
     final message = switch (error.code) {
       'storagePickerBusy' => strings.storagePickerBusy,
       'storageEmptyFile' => strings.storageEmptyFile,
+      'storageFileTooLarge' => strings.storageFileTooLarge,
       'storageVerificationFailed' => strings.storageVerificationFailed,
       'storageFolderPermission' => strings.storageFolderPermission,
       'storageRecoveryFailed' => strings.storageRecoveryFailed,

@@ -12,8 +12,6 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.Executors
 
-private class StorageFailure(val code: String) : IllegalStateException(code)
-
 class MainActivity : FlutterActivity() {
     private var picker: MethodChannel.Result? = null
     private val io = Executors.newSingleThreadExecutor()
@@ -59,21 +57,10 @@ class MainActivity : FlutterActivity() {
                             val uri = Uri.parse(requireNotNull(call.argument<String>("uri")))
                             val target = File(requireNotNull(call.argument<String>("path")))
                             if (call.method == "readDocument") {
-                                requireNotNull(contentResolver.openInputStream(uri)).use { input ->
-                                    target.outputStream().use { input.copyTo(it); it.fd.sync() }
-                                }
+                                readDocument(uri, target)
                                 require(target.length() > 0) { throw StorageFailure("storageEmptyFile") }
                             } else {
-                                val bytes = target.readBytes()
-                                val original = contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                                try {
-                                    requireNotNull(contentResolver.openOutputStream(uri, "rwt")).use { it.write(bytes); it.flush() }
-                                    val saved = requireNotNull(contentResolver.openInputStream(uri)).use { it.readBytes() }
-                                    require(saved.contentEquals(bytes)) { throw StorageFailure("storageVerificationFailed") }
-                                } catch (e: Exception) {
-                                    if (original != null) try { contentResolver.openOutputStream(uri, "rwt")?.use { it.write(original); it.flush() } } catch (_: Exception) { }
-                                    throw e
-                                }
+                                writeDocument(uri, target)
                             }
                             runOnUiThread { result.success(null) }
                         } catch (e: Exception) { runOnUiThread { result.error((e as? StorageFailure)?.code ?: "storage", e.message, null) } }
@@ -113,23 +100,21 @@ class MainActivity : FlutterActivity() {
                             "readDatabase" -> {
                                 val document = requireNotNull(current) { throw StorageFailure("storageMissingDatabase") }
                                 val target = File(requireNotNull(call.argument<String>("path")))
-                                contentResolver.openInputStream(document.uri).use { input ->
-                                    requireNotNull(input).use { stream -> target.outputStream().use { stream.copyTo(it); it.fd.sync() } }
-                                }
+                                readDocument(document.uri, target)
                                 require(target.length() > 0) { throw StorageFailure("storageEmptyDatabase") }
                                 null
                             }
                             else -> {
                                 val source = File(requireNotNull(call.argument<String>("path")))
                                 require(source.exists() && source.length() > 0) { throw StorageFailure("storageNoData") }
+                                StorageStreams.checkSize(source.length())
                                 val pending = requireNotNull(tree.createFile("application/octet-stream", "$filename.pending-${UUID.randomUUID()}"))
                                 var published = false
                                 try {
                                     requireNotNull(contentResolver.openOutputStream(pending.uri, "wt")).use { output ->
-                                        source.inputStream().use { it.copyTo(output) }; output.flush()
+                                        source.inputStream().use { StorageStreams.copy(it, output) }; output.flush()
                                     }
-                                    val bytes = requireNotNull(contentResolver.openInputStream(pending.uri)).use { it.readBytes() }
-                                    require(bytes.contentEquals(source.readBytes())) { throw StorageFailure("storageVerificationFailed") }
+                                    verifyDocument(pending.uri, source)
                                     tree.findFile("$filename.previous")?.let { require(it.delete()) { throw StorageFailure("storageCleanupFailed") } }
                                     if (current != null) require(current.renameTo("$filename.previous")) { throw StorageFailure("storageRenameUnsupported") }
                                     if (!pending.renameTo(filename)) {
@@ -147,6 +132,46 @@ class MainActivity : FlutterActivity() {
                 }
             }
     }
+
+    private fun readDocument(uri: Uri, target: File) {
+        try {
+            requireNotNull(contentResolver.openInputStream(uri)).use { input ->
+                target.outputStream().use { StorageStreams.copy(input, it); it.fd.sync() }
+            }
+        } catch (e: Exception) {
+            target.delete() // Never retain a partial or oversized import.
+            throw e
+        }
+    }
+
+    private fun verifyDocument(uri: Uri, source: File) {
+        val expected = source.inputStream().use { StorageStreams.digest(it) }
+        val actual = requireNotNull(contentResolver.openInputStream(uri)).use { StorageStreams.digest(it) }
+        require(expected.contentEquals(actual)) { throw StorageFailure("storageVerificationFailed") }
+    }
+
+    private fun writeDocument(uri: Uri, source: File) {
+        StorageStreams.checkSize(source.length())
+        // Obtain a bounded recovery copy before touching the original document.
+        val backup = File.createTempFile("unitable-backup-", ".tmp", cacheDir)
+        try {
+            readDocument(uri, backup)
+            try {
+                requireNotNull(contentResolver.openOutputStream(uri, "rwt")).use { output ->
+                    source.inputStream().use { StorageStreams.copy(it, output) }; output.flush()
+                }
+                verifyDocument(uri, source)
+            } catch (e: Exception) {
+                try {
+                    requireNotNull(contentResolver.openOutputStream(uri, "rwt")).use { output ->
+                        backup.inputStream().use { StorageStreams.copy(it, output) }; output.flush()
+                    }
+                } catch (_: Exception) { /* Working DB remains available for retry. */ }
+                throw e
+            }
+        } finally { backup.delete() }
+    }
+
     @Deprecated("Android compatibility callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)

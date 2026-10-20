@@ -98,6 +98,24 @@ abstract class AppLocalizations {
     Locale('ja'),
   ];
 
+  /// No description provided for @databaseTooLarge.
+  ///
+  /// In ja, this message translates to:
+  /// **'データベースが上限（32 MiB・合計100,000件）を超えています。'**
+  String get databaseTooLarge;
+
+  /// No description provided for @unsafeDatabaseSchema.
+  ///
+  /// In ja, this message translates to:
+  /// **'安全でないデータベース構造のため開けません。'**
+  String get unsafeDatabaseSchema;
+
+  /// No description provided for @storageFileTooLarge.
+  ///
+  /// In ja, this message translates to:
+  /// **'ファイルがサイズ上限（32 MiB）を超えています。'**
+  String get storageFileTooLarge;
+
   /// UniTable
   ///
   /// In ja, this message translates to:

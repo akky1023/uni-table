@@ -1,4 +1,7 @@
 {
+  "databaseTooLarge": "The database exceeds the limit (32 MiB or 100,000 rows in total).",
+  "unsafeDatabaseSchema": "This database cannot be opened because its structure is unsafe.",
+  "storageFileTooLarge": "The file exceeds the size limit (32 MiB).",
   "@@locale": "en",
   "appName": "UniTable",
   "invalidDatabase": "This is not a UniTable database. The original file has not been changed.",

@@ -9,6 +9,17 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get databaseTooLarge =>
+      'The database exceeds the limit (32 MiB or 100,000 rows in total).';
+
+  @override
+  String get unsafeDatabaseSchema =>
+      'This database cannot be opened because its structure is unsafe.';
+
+  @override
+  String get storageFileTooLarge => 'The file exceeds the size limit (32 MiB).';
+
+  @override
   String get appName => 'UniTable';
 
   @override

@@ -9,6 +9,15 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get databaseTooLarge => 'データベースが上限（32 MiB・合計100,000件）を超えています。';
+
+  @override
+  String get unsafeDatabaseSchema => '安全でないデータベース構造のため開けません。';
+
+  @override
+  String get storageFileTooLarge => 'ファイルがサイズ上限（32 MiB）を超えています。';
+
+  @override
   String get appName => 'うに時間割';
 
   @override

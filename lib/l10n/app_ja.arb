@@ -1,4 +1,7 @@
 {
+  "databaseTooLarge": "データベースが上限（32 MiB・合計100,000件）を超えています。",
+  "unsafeDatabaseSchema": "安全でないデータベース構造のため開けません。",
+  "storageFileTooLarge": "ファイルがサイズ上限（32 MiB）を超えています。",
   "@@locale": "ja",
   "appName": "うに時間割",
   "@appName": {
