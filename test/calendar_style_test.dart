@@ -98,6 +98,35 @@ void main() {
         'holiday');
     expect(calendarPaint(data(), date, editing: false).rule, 'exam_period');
   });
+  for (final standalone in [true, false]) {
+    test('${standalone ? '単独補講' : '休講に伴う補講'}だけでは年間予定を代替日の色や記号にしない', () {
+      final school = data(active: true);
+      school.rows('settings').add({'id': 'accessibility_marks', 'value': '1'});
+      if (standalone) {
+        school.rows('meetings').single['is_makeup'] = 1;
+      } else {
+        final source = shiftDay(date, -1);
+        school.rows('meetings').single['once_date'] = dayKey(source);
+        school.tables['session_changes'] = [{
+          'meeting_id': 'm', 'date': dayKey(source), 'cancelled': 1,
+          'replacement_date': dayKey(date), 'replacement_slot_id': 's',
+        }];
+      }
+      expect(ScheduleEngine(school).onDay(date).single.makeup, isTrue);
+      expect(isReplacementDate(school, date), isFalse);
+      final paint = calendarPaint(school, date, editing: false);
+      expect(paint.rule, 'active');
+      expect(paint.colors.single, Color(calendarColors(school)['active']!));
+      expect(calendarPaint(school, date, editing: true).colors,
+          isNot(contains(Color(calendarColors(school)['replacement_active']!))));
+      final mark = calendarMarks(school, date, editing: false).single as StatusMark;
+      expect(mark.shape, isNot(6));
+      school.rows('day_changes').single['source_weekday'] = date.weekday;
+      expect(isReplacementDate(school, date), isTrue);
+      expect(calendarPaint(school, date, editing: false).rule, 'replacement_active');
+    });
+  }
+
   test('優先順位とRGBAを変更でき編集は重なる全期間を横帯で表示する', () {
     final custom = data(
         active: true,

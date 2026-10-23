@@ -256,7 +256,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get examDay => 'Day with an exam';
 
   @override
-  String get replacementActive => 'Replacement day with classes';
+  String get replacementActive => 'Make-up day with classes';
 
   @override
   String get activeDay => 'Day with classes';
@@ -271,7 +271,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get examPeriod => 'Exam period';
 
   @override
-  String get replacementDay => 'Replacement day';
+  String get replacementDay => 'Make-up day';
 
   @override
   String get definedHoliday => 'Day matching the non-teaching day settings';
@@ -927,7 +927,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deadline => 'Due date and time';
 
   @override
-  String get chooseDeadlineFromTimetable => 'Choose due date from timetable';
+  String get chooseDeadlineFromTimetable => 'Select from timetable';
 
   @override
   String get destination => 'Submit to';
@@ -1036,7 +1036,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get universityClosed => 'University closed';
+  String get universityClosed => 'Holiday';
 
   @override
   String get optionalUniversityReplacement =>
@@ -1047,7 +1047,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get universityReplacementHelp =>
-      'A university replacement day replaces the classes normally scheduled for that weekday.';
+      'A university make-up day replaces the classes normally scheduled for that weekday.';
 
   @override
   String get universityReplacementMustDiffer =>
@@ -1529,4 +1529,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get universitySettings => 'University settings';
+
+  @override
+  String get editSession => 'Cancellation / make-up settings';
+
+  @override
+  String get addMakeup => 'Add make-up class';
+
+  @override
+  String get editMakeup => 'Edit make-up class';
+
+  @override
+  String get sessionNotes => 'Notes for this class';
+
+  @override
+  String get courseNotes => 'Course notes';
+
+  @override
+  String get makeupCourseRequired => 'Register a course first';
+
+  @override
+  String get sameSessionDestination =>
+      'Choose a make-up date or time slot different from the cancelled class';
+
+  @override
+  String get makeupLabel => 'Make-up';
+
+  @override
+  String get makeupSlot => 'Make-up time slot';
+
+  @override
+  String get clearMakeupSlot => 'Clear make-up time slot';
+
+  @override
+  String get chooseMakeupFromTimetable => 'Choose make-up slot from timetable';
+
+  @override
+  String get selectMakeupSlot => 'Select make-up time slot';
+
+  @override
+  String get sessionAddAssignment => 'Assignment';
+
+  @override
+  String get sessionAddMakeup => 'Make-up class';
+
+  @override
+  String get cancelSessionQuestion => 'Cancel this class?';
+
+  @override
+  String get chooseSessionMakeup => 'Select make-up class';
+
+  @override
+  String get cancelMakeupQuestion => 'Cancel this make-up class?';
+
+  @override
+  String get cancelMakeup => 'Cancel make-up class';
+
+  @override
+  String get selectMakeupCourse => 'Select a make-up course';
+
+  @override
+  String get replaceLectureWithMakeupQuestion =>
+      'Cancel the existing class and add this make-up class?';
+
+  @override
+  String get replaceOneOffWithMakeupQuestion =>
+      'Remove the one-off class and add this make-up class?';
 }

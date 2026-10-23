@@ -68,6 +68,8 @@ class Session {
       this.change,
       this.cancelled = false,
       this.replacement = false});
+  String get notes => change?['notes'] as String? ?? '';
+  bool get makeup => replacement || meeting['is_makeup'] == 1;
   String get key => '${meeting['id']}:${dayKey(sourceDate)}';
   String get room =>
       change?['room'] as String? ??
@@ -129,7 +131,7 @@ class ScheduleEngine {
     final slot = data.find('slots', meeting['slot_id'] as String?);
     if (course == null || slot == null) return null;
     final dc = dayChange(date);
-    if (!ignoreClosure &&
+    if (!ignoreClosure && meeting['is_makeup'] != 1 &&
         (dc?['cancelled'] == 1 ||
             (isClosed(date) && dc?['source_weekday'] == null))) {
       return null;
@@ -224,23 +226,31 @@ class ScheduleEngine {
     final sourceDate =
         movedDay == null ? date : DateTime.parse(movedDay['date'] as String);
     for (final meeting in data.rows('meetings')) {
-      if (movedDay != null && dayChange(date)?['cancelled'] == 1) continue;
+      final standalone = meeting['is_makeup'] == 1;
+      if (movedDay != null && dayChange(date)?['cancelled'] == 1 && !standalone) {
+        continue;
+      }
+      // Independent makeups keep their own date when an entire day is moved.
+      final origin = standalone ? date : sourceDate;
       final base =
-          baseSession(meeting, sourceDate, ignoreClosure: movedDay != null);
+          baseSession(meeting, origin, ignoreClosure: movedDay != null);
       if (base == null) continue;
-      final edit = sessionChange(meeting['id'] as String, sourceDate);
-      final cancelled =
-          edit?['cancelled'] == 1 || edit?['replacement_date'] != null;
+      final edit = sessionChange(meeting['id'] as String, origin);
+      final moved = edit?['replacement_date'] != null;
+      final samePosition = edit?['replacement_date'] == dayKey(date) &&
+          (edit?['replacement_slot_id'] ?? base.slot['id']) == base.slot['id'];
+      if (moved && samePosition) continue;
+      final cancelled = edit?['cancelled'] == 1 || moved;
       if (cancelled && !includeCancelled) continue;
       result.add(Session(
           meeting: meeting,
           course: base.course,
           slot: base.slot,
-          sourceDate: sourceDate,
+          sourceDate: origin,
           date: date,
           change: edit,
           cancelled: cancelled,
-          replacement: movedDay != null));
+          replacement: movedDay != null && !standalone));
     }
     for (final edit in data.rows('session_changes')) {
       if (edit['replacement_date'] != dayKey(date)) continue;
@@ -289,6 +299,7 @@ class ScheduleEngine {
           slot['start_minute'] as int);
     }
     if (edit?['cancelled'] == 1) return null;
+    if (meeting['is_makeup'] == 1) return base.start;
     if (day?['replacement_date'] != null) {
       final destination = DateTime.parse(day!['replacement_date'] as String);
       if (dayChange(destination)?['cancelled'] == 1) return null;

@@ -12,6 +12,8 @@ import 'package:unitable/app_info.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:unitable/domain/schedule.dart';
 import 'package:unitable/ui/home.dart';
+import 'package:unitable/ui/app_palette.dart';
+import 'package:unitable/ui/calendar_style.dart';
 import 'package:unitable/ui/annual_calendar.dart';
 import 'package:unitable/ui/accessibility.dart';
 import 'package:unitable/ui/status_marks.dart';
@@ -200,6 +202,501 @@ void main() {
       image.dispose();
     });
   }
+
+  testWidgets('休講はコマに付く吹き出しで補講だけを着色しピッカーを左右スワイプできる', (tester) async {
+    final oldShadows = debugDisableShadows;
+    debugDisableShadows = false;
+    addTearDown(() => debugDisableShadows = oldShadows);
+    populate();
+    final overrideDate = shiftDay(dateOnly(DateTime.now()), 10 - DateTime.now().weekday);
+    storage.database.transaction(() => storage.database.put('day_changes', {
+      'id': 'makeup-picker-substitute', 'date': dayKey(overrideDate),
+      'source_weekday': 2, 'cancelled': 0,
+    }));
+    await size(tester, const Size(390, 844));
+    final capture = GlobalKey();
+    await tester.pumpWidget(RepaintBoundary(key: capture, child: app(desktop: false)));
+    await tester.pumpAndSettle();
+    final now = dateOnly(DateTime.now());
+    final monday = shiftDay(now, 8 - now.weekday), tuesday = shiftDay(now, 9 - now.weekday);
+    await tester.tap(find.byTooltip('次の週'));
+    await tester.pumpAndSettle();
+    Finder cellAt(DateTime date, String slot) => find.byKey(ValueKey('timetable-$slot-${dayKey(date)}'));
+    Color colorAt(DateTime date, String slot) => (tester.widget<Container>(cellAt(date, slot)).decoration as BoxDecoration).color!;
+    final regularColor = colorAt(tuesday, 'slot-2');
+    final source = cellAt(monday, 'slot-1');
+    final sourceRect = tester.getRect(source);
+    await tester.longPress(source);
+    await tester.pumpAndSettle();
+    final bubble = find.byKey(const ValueKey('anchored-bubble'));
+    final bubbleRect = tester.getRect(bubble);
+    expect(bubbleRect.width, inInclusiveRange(100, 280));
+    expect(bubbleRect.top >= sourceRect.bottom || bubbleRect.bottom <= sourceRect.top, isTrue);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.descendant(of: bubble, matching: find.text('情報科学')), findsNothing);
+    expect(find.text('この回を休講にしますか？'), findsNothing);
+    expect(find.byType(TextFormField), findsNothing);
+    expect(find.text('保存'), findsNothing);
+    expect(find.text('キャンセル'), findsNothing);
+    await tester.tap(find.text('休講'));
+    await tester.pumpAndSettle();
+    expect(ScheduleEngine(storage.database.data).onDay(monday).singleWhere((s) => s.meeting['id'] == 'm0-0').cancelled, isTrue);
+    final selectButton = tester.getRect(find.widgetWithText(OutlinedButton, '補講を選択'));
+    final settingsBubble = tester.getRect(bubble);
+    expect(selectButton.right, closeTo(settingsBubble.right - 14, 1));
+    expect(selectButton.width, lessThan(160));
+    final labelSize = tester.getSize(find.text('休講'));
+    await tester.tap(find.text('休講'));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.text('休講')), labelSize);
+    final labelRect = tester.getRect(find.text('休講'));
+    final toggleRect = tester.getRect(find.descendant(of: bubble, matching: find.byType(AppToggle)));
+    expect(toggleRect.left - labelRect.right, greaterThanOrEqualTo(16));
+    await screenshot(tester, capture, 'session-cancellation-off-bubble-mobile');
+    await tester.tap(find.text('休講'));
+    await tester.pumpAndSettle();
+    await screenshot(tester, capture, 'session-cancellation-bubble-mobile');
+    await tester.tap(find.text('補講を選択'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byKey(const ValueKey('anchored-bubble')), findsNothing);
+    expect(find.byIcon(Icons.edit_outlined), findsNothing);
+    final heading = find.text('月\n${monday.month}/${monday.day}');
+    expect(DefaultTextStyle.of(tester.element(heading)).style.color,
+        Theme.of(tester.element(heading)).colorScheme.primary);
+
+    final overridden = cellAt(overrideDate, 'slot-2');
+    expect(find.descendant(of: overridden, matching: find.text('線形代数')), findsOneWidget);
+    expect(find.descendant(of: overridden, matching: find.text('英語コミュニケーション')), findsNothing);
+    expect(tester.getRect(source), sourceRect);
+    await screenshot(tester, capture, 'makeup-destination-fullscreen-mobile');
+    final pager = find.byKey(const ValueKey('timetable-picker-pager'));
+    final width = tester.getSize(pager).width;
+    await tester.drag(pager, Offset(-width * .85, 0));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('deadline-empty-${dayKey(shiftDay(tuesday, 7))}-slot-1')), findsOneWidget);
+    await tester.drag(pager, Offset(width * .85, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('deadline-empty-${dayKey(tuesday)}-slot-1')));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(colorAt(monday, 'slot-1'), Color(lightPalette['past']!));
+    expect(colorAt(tuesday, 'slot-1'), Color(lightPalette['replacement']!));
+    expect(colorAt(tuesday, 'slot-2'), regularColor);
+    expect(colorAt(monday, 'slot-2'), regularColor);
+    final makeupCell = cellAt(tuesday, 'slot-1');
+    expect(find.descendant(of: makeupCell, matching: find.text('A-201')), findsOneWidget);
+    expect(find.descendant(of: makeupCell, matching: find.text('補講')), findsNothing);
+    await tester.longPress(makeupCell);
+    await tester.pumpAndSettle();
+    expect(find.text('補講を取り消しますか？'), findsOneWidget);
+    expect(find.text('休講'), findsNothing);
+    await tester.tap(find.text('補講を取り消す'));
+    await tester.pumpAndSettle();
+    final engine = ScheduleEngine(storage.database.data);
+    expect(engine.onDay(tuesday).where((s) => s.meeting['id'] == 'm0-0'), isEmpty);
+    expect(engine.onDay(monday).singleWhere((s) => s.meeting['id'] == 'm0-0').cancelled, isTrue);
+    expect(tester.takeException(), isNull);
+    debugDisableShadows = oldShadows;
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  for (final linked in [false, true]) {
+    testWidgets('代替日の講義色は${linked ? '休業日からの移動' : '曜日指定だけ'}でもオレンジになる', (tester) async {
+      populate();
+      final monday = shiftDay(dateOnly(DateTime.now()), 8 - DateTime.now().weekday);
+      final date = shiftDay(monday, 2);
+      storage.database.transaction(() {
+        storage.database.put('day_changes', {
+          'id': 'substitute-day', 'date': dayKey(date),
+          'source_weekday': 2, 'cancelled': 0,
+        });
+        if (linked) {
+          storage.database.put('day_changes', {
+          'id': 'substitute-origin', 'date': dayKey(shiftDay(monday, 1)),
+          'cancelled': 1, 'source_weekday': 2, 'replacement_date': dayKey(date),
+          });
+        }
+        storage.database.put('session_changes', {
+          'id': 'cancelled-on-substitute', 'meeting_id': 'm1-0',
+          'date': dayKey(linked ? shiftDay(monday, 1) : date), 'cancelled': 1,
+        });
+      });
+      await size(tester, const Size(390, 844));
+      await tester.pumpWidget(app(desktop: false));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('次の週'));
+      await tester.pumpAndSettle();
+      Finder cellAt(DateTime d, String slot) => find.byKey(ValueKey('timetable-$slot-${dayKey(d)}'));
+      Color colorAt(DateTime d, String slot) => (tester.widget<Container>(cellAt(d, slot)).decoration as BoxDecoration).color!;
+      expect(colorAt(date, 'slot-3'), Color(lightPalette['replacement']!));
+      final active = ScheduleEngine(storage.database.data).onDay(date, includeCancelled: false).single;
+      final card = find.byKey(ValueKey('session-${active.key}-${dayKey(date)}-slot-3'));
+      expect((tester.widget<Container>(card).decoration as BoxDecoration).color,
+          Color(lightPalette['replacement']!));
+      expect(colorAt(date, 'slot-2'), Color(lightPalette['past']!));
+      expect(colorAt(date, 'slot-5'), Color(lightPalette['empty']!));
+      expect(colorAt(shiftDay(monday, 3), 'slot-1'), Color(lightPalette['lecture']!));
+      await tester.longPress(cellAt(date, 'slot-5'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('補講を追加'));
+      await tester.pumpAndSettle();
+      expect(colorAt(date, 'slot-3'), Color(lightPalette['lecture']!));
+      expect(find.descendant(of: cellAt(date, 'slot-3'), matching: find.text('英語コミュニケーション')), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('単独補講は追加ボタンから配置を変えない時間割選択に入り即座に追加される', (tester) async {
+    final oldShadows = debugDisableShadows;
+    debugDisableShadows = false;
+    addTearDown(() => debugDisableShadows = oldShadows);
+    populate();
+    await size(tester, const Size(390, 844));
+    final capture = GlobalKey();
+    await tester.pumpWidget(RepaintBoundary(key: capture, child: app(desktop: false)));
+    await tester.pumpAndSettle();
+    final now = dateOnly(DateTime.now());
+    final monday = shiftDay(now, 8 - now.weekday);
+    final sourceDate = shiftDay(monday, 2);
+    storage.database.transaction(() => storage.database.put('meetings', {
+      'id': 'oneoff-picker-source', 'course_id': 'c1',
+      'once_date': dayKey(sourceDate), 'slot_id': 'slot-5',
+    }));
+    await tester.tap(find.byTooltip('次の週'));
+    await tester.pumpAndSettle();
+    final cell = find.byKey(ValueKey('timetable-slot-3-${dayKey(monday)}'));
+    final oneoffCell = find.byKey(ValueKey('timetable-slot-5-${dayKey(sourceDate)}'));
+    expect(find.descendant(of: oneoffCell, matching: find.text('線形代数')), findsOneWidget);
+    final courseCell = find.byKey(ValueKey('timetable-slot-2-${dayKey(shiftDay(monday, 1))}'));
+    final courseRect = tester.getRect(courseCell);
+    await tester.longPress(cell);
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byKey(const ValueKey('add-makeup-bubble')), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+    expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+    expect(find.text('保存'), findsNothing);
+    expect(find.text('キャンセル'), findsNothing);
+    expect(find.widgetWithText(FilledButton, '補講を追加'), findsOneWidget);
+    expect(find.text('時間割から補講のコマを選ぶ'), findsNothing);
+    final bubbleWidth = tester.getSize(find.byKey(const ValueKey('anchored-bubble'))).width;
+    expect(bubbleWidth, lessThan(200));
+    expect(bubbleWidth, closeTo(tester.getSize(find.byKey(const ValueKey('add-makeup-bubble'))).width + 28, 1));
+    await screenshot(tester, capture, 'add-makeup-bubble-mobile');
+    await tester.tap(find.text('補講を追加'));
+    await tester.pumpAndSettle();
+    expect(find.text('補講の講義を選択'), findsOneWidget);
+    expect(find.byKey(const ValueKey('anchored-bubble')), findsNothing);
+    expect(tester.getRect(courseCell), courseRect);
+    expect(find.byTooltip('次の週').hitTestable(), findsNothing);
+    expect(find.text('今週').hitTestable(), findsNothing);
+    expect(find.text('月\n${monday.month}/${monday.day}'), findsNothing);
+    expect(find.text('月'), findsOneWidget);
+    expect((tester.widget<Container>(courseCell).decoration as BoxDecoration).color,
+        Color(lightPalette['lecture']!));
+    expect(find.descendant(of: oneoffCell, matching: find.text('線形代数')), findsNothing);
+    expect((tester.widget<Container>(oneoffCell).decoration as BoxDecoration).color,
+        Color(lightPalette['empty']!));
+    await screenshot(tester, capture, 'makeup-course-fullscreen-mobile');
+    await tester.drag(courseCell, const Offset(-250, 0));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(courseCell), courseRect);
+    await tester.tap(find.descendant(of: courseCell, matching: find.text('線形代数')));
+    await tester.pumpAndSettle();
+    expect(find.text('補講の講義を選択'), findsNothing);
+    expect(find.descendant(of: oneoffCell, matching: find.text('線形代数')), findsOneWidget);
+    final meeting = storage.database.data.rows('meetings').singleWhere((m) => m['is_makeup'] == 1);
+    expect((tester.widget<Container>(cell).decoration as BoxDecoration).color, Color(lightPalette['replacement']!));
+    expect(meeting['course_id'], 'c1');
+    expect(meeting['once_date'], dayKey(monday));
+    expect(meeting['slot_id'], 'slot-3');
+    expect(find.descendant(of: cell, matching: find.text('B-302')), findsOneWidget);
+    expect(isReplacementDate(storage.database.data, monday), isFalse);
+    await tester.longPress(cell);
+    await tester.pumpAndSettle();
+    expect(find.text('補講を取り消しますか？'), findsOneWidget);
+    await tester.tap(find.text('補講を取り消す'));
+    await tester.pumpAndSettle();
+    expect(storage.database.data.find('meetings', meeting['id'] as String), isNull);
+    expect((tester.widget<Container>(cell).decoration as BoxDecoration).color, Color(lightPalette['empty']!));
+    await tester.longPress(cell);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('補講を追加'));
+    await tester.pumpAndSettle();
+    expect(find.text('補講の講義を選択'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('補講の講義を選択'), findsNothing);
+    expect(storage.database.data.rows('meetings').where((m) => m['is_makeup'] == 1), isEmpty);
+    expect(tester.takeException(), isNull);
+    debugDisableShadows = oldShadows;
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  for (final targetKind in ['同じ元コマ', '同じ通常講義', '同じ単発講義', '同じ単独補講', '同じ移動済み補講']) {
+    testWidgets('補講先が$targetKindなら確認やエラーを出さず変更しない', (tester) async {
+      populate();
+      final monday = shiftDay(dateOnly(DateTime.now()), 8 - DateTime.now().weekday);
+      final destinationDate = targetKind == '同じ元コマ' || targetKind == '同じ通常講義'
+          ? monday : shiftDay(monday, 1);
+      final destinationSlot = targetKind == '同じ通常講義' ? 'slot-2' : 'slot-1';
+      storage.database.transaction(() {
+        if (targetKind == '同じ単発講義' || targetKind == '同じ単独補講') {
+          storage.database.put('meetings', {
+            'id': 'same-course-destination', 'course_id': 'c0',
+            'once_date': dayKey(destinationDate), 'slot_id': destinationSlot,
+            'is_makeup': targetKind == '同じ単独補講' ? 1 : 0,
+          });
+        } else if (targetKind == '同じ移動済み補講') {
+          storage.database.put('session_changes', {
+            'id': 'same-course-makeup', 'meeting_id': 'm0-1', 'date': dayKey(monday),
+            'cancelled': 1, 'replacement_date': dayKey(destinationDate),
+            'replacement_slot_id': destinationSlot,
+          });
+        }
+      });
+      await size(tester, const Size(390, 844));
+      await tester.pumpWidget(app(desktop: false));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('次の週'));
+      await tester.pumpAndSettle();
+      final source = find.byKey(ValueKey('timetable-slot-1-${dayKey(monday)}'));
+      await tester.longPress(source);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('休講'));
+      await tester.pumpAndSettle();
+      final changesBefore = jsonEncode(storage.database.data.rows('session_changes'));
+      final meetingsBefore = jsonEncode(storage.database.data.rows('meetings'));
+      await tester.tap(find.text('補講を選択'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('timetable-$destinationSlot-${dayKey(destinationDate)}')));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
+      expect(find.text('補講のコマを選択'), findsNothing);
+      expect(jsonEncode(storage.database.data.rows('session_changes')), changesBefore);
+      expect(jsonEncode(storage.database.data.rows('meetings')), meetingsBefore);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  for (final existingKind in ['通常講義', '単独補講', '休講に伴う補講', '単発講義']) {
+    testWidgets('補講先の$existingKindは確認してから置き換え重複させない', (tester) async {
+      populate();
+      final monday = shiftDay(dateOnly(DateTime.now()), 8 - DateTime.now().weekday);
+      final tuesday = shiftDay(monday, 1);
+      var existingId = 'm1-0';
+      storage.database.transaction(() {
+        if (existingKind != '通常講義') {
+          storage.database.put('session_changes', {
+            'id': 'original-cancelled', 'meeting_id': 'm1-0',
+            'date': dayKey(tuesday), 'cancelled': 1,
+          });
+          if (existingKind == '単独補講' || existingKind == '単発講義') {
+            existingId = 'existing-standalone';
+            storage.database.put('meetings', {
+              'id': existingId, 'course_id': 'c2', 'is_makeup': existingKind == '単独補講' ? 1 : 0,
+              'once_date': dayKey(tuesday), 'slot_id': 'slot-2',
+            });
+          } else {
+            existingId = 'm2-0';
+            storage.database.put('session_changes', {
+              'id': 'existing-linked', 'meeting_id': existingId,
+              'date': dayKey(shiftDay(monday, 2)), 'cancelled': 1,
+              'replacement_date': dayKey(tuesday), 'replacement_slot_id': 'slot-2',
+              'notes': '既存のメモ',
+            });
+          }
+        }
+      });
+      await size(tester, const Size(390, 844));
+      await tester.pumpWidget(app(desktop: false));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('次の週'));
+      await tester.pumpAndSettle();
+      final source = find.byKey(ValueKey('timetable-slot-1-${dayKey(monday)}'));
+      final target = find.byKey(ValueKey('timetable-slot-2-${dayKey(tuesday)}'));
+      if (existingKind == '単発講義') {
+        await tester.longPress(target);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('anchored-bubble')), findsNothing);
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(storage.database.data.find('meetings', existingId), isNotNull);
+        expect(ScheduleEngine(storage.database.data).sessionChange(existingId, tuesday), isNull);
+      }
+      Future<void> selectTarget({bool cancelSource = false}) async {
+        await tester.longPress(source);
+        await tester.pumpAndSettle();
+        if (cancelSource) {
+          await tester.tap(find.text('休講'));
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(find.text('補講を選択'));
+        await tester.pumpAndSettle();
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+        expect(find.text(existingKind == '単発講義' ? '単発講義を取り消して登録しますか？' : 'もとの講義を休講にして登録しますか？'), findsOneWidget);
+      }
+      List<Session> active() => ScheduleEngine(storage.database.data)
+          .onDay(tuesday, includeCancelled: false).where((s) => s.slot['id'] == 'slot-2').toList();
+      await selectTarget(cancelSource: true);
+      await tester.tap(find.widgetWithText(TextButton, 'キャンセル'));
+      await tester.pumpAndSettle();
+      expect(active().single.meeting['id'], existingId);
+      if (existingKind == '単発講義') expect(storage.database.data.find('meetings', existingId), isNotNull);
+      expect(ScheduleEngine(storage.database.data).sessionChange('m0-0', monday)?['replacement_date'], isNull);
+      await selectTarget();
+      await tester.tap(find.widgetWithText(FilledButton, '登録'));
+      await tester.pumpAndSettle();
+      expect(active().single.meeting['id'], 'm0-0');
+      if (existingKind == '単発講義') {
+        expect(storage.database.data.find('meetings', existingId), isNull);
+        expect(storage.database.data.find('courses', 'c2'), isNotNull);
+      }
+      expect(find.descendant(of: target, matching: find.text('情報科学')), findsOneWidget);
+      expect(find.descendant(of: target, matching: find.text(existingKind == '通常講義' ? '線形代数' : '英語コミュニケーション')), findsNothing);
+      if (existingKind == '休講に伴う補講') {
+        final change = ScheduleEngine(storage.database.data).sessionChange('m2-0', shiftDay(monday, 2));
+        expect(change?['replacement_date'], isNull);
+        expect(change?['notes'], '既存のメモ');
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('過去週からの単独補講選択も講義色と曜日色を保つ', (tester) async {
+    populate();
+    await size(tester, const Size(390, 844));
+    await tester.pumpWidget(app(desktop: false));
+    await tester.pumpAndSettle();
+    final monday = shiftDay(dateOnly(DateTime.now()), -6 - DateTime.now().weekday);
+    await tester.tap(find.byTooltip('前の週'));
+    await tester.pumpAndSettle();
+    final emptyCell = find.byKey(ValueKey('timetable-slot-3-${dayKey(monday)}'));
+    await tester.longPress(emptyCell);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('補講を追加'));
+    await tester.pumpAndSettle();
+    final lecture = find.byKey(ValueKey('timetable-slot-1-${dayKey(monday)}'));
+    expect((tester.widget<Container>(lecture).decoration as BoxDecoration).color,
+        Color(lightPalette['lecture']!));
+    final heading = find.text('月');
+    expect(DefaultTextStyle.of(tester.element(heading)).style.color,
+        Theme.of(tester.element(heading)).colorScheme.primary);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect((tester.widget<Container>(lecture).decoration as BoxDecoration).color,
+        Color(lightPalette['past']!));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('休業日の長押しも押した時限に講義選択だけで単独補講を追加する', (tester) async {
+    populate();
+    final now = dateOnly(DateTime.now());
+    final monday = shiftDay(now, 8 - now.weekday);
+    storage.database.transaction(() => storage.database.put('day_changes', {
+      'id': 'closed-monday', 'date': dayKey(monday), 'cancelled': 1,
+    }));
+    await size(tester, const Size(390, 844));
+    await tester.pumpWidget(app(desktop: false));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('次の週'));
+    await tester.pumpAndSettle();
+    final area = tester.getRect(find.byKey(ValueKey('holiday-${dayKey(monday)}')));
+    await tester.longPressAt(Offset(area.center.dx, area.top + area.height * 3.5 / 6));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('add-makeup-bubble')), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+    await tester.tap(find.text('補講を追加'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: find.byKey(ValueKey('timetable-slot-1-${dayKey(monday)}')), matching: find.text('情報科学')));
+    await tester.pumpAndSettle();
+    final meeting = storage.database.data.rows('meetings').singleWhere((m) => m['is_makeup'] == 1);
+    expect(meeting['once_date'], dayKey(monday));
+    expect(meeting['slot_id'], 'slot-4');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('各回メモは詳細で直接入力し閉じる・外側タップ・戻るで保存する', (tester) async {
+    populate();
+    await size(tester, const Size(390, 844));
+    final capture = GlobalKey();
+    await tester.pumpWidget(RepaintBoundary(key: capture, child: app(desktop: false)));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('補講を追加'), findsNothing);
+    final now = dateOnly(DateTime.now());
+    final monday = shiftDay(now, 1 - now.weekday);
+    await tester.longPress(find.byKey(ValueKey('timetable-slot-3-${dayKey(monday)}')));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextFormField), findsNothing);
+    await tester.tap(find.text('補講を追加'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: find.byKey(ValueKey('timetable-slot-1-${dayKey(monday)}')), matching: find.text('情報科学')));
+    await tester.pumpAndSettle();
+    final meeting = storage.database.data.rows('meetings').singleWhere((m) => m['is_makeup'] == 1);
+    final date = DateTime.parse(meeting['once_date'] as String);
+    Finder card() => find.descendant(
+        of: find.byKey(ValueKey('timetable-${meeting['slot_id']}-${dayKey(date)}')),
+        matching: find.text('情報科学'));
+    Future<void> open() async {
+      await tester.tap(card());
+      await tester.pumpAndSettle();
+    }
+    String savedNotes() => ScheduleEngine(storage.database.data).onDay(date)
+        .singleWhere((s) => s.meeting['id'] == meeting['id']).notes;
+    await open();
+    expect(find.widgetWithText(TextButton, '講義全体のメモ'), findsNothing);
+    expect(find.text('保存'), findsNothing);
+    expect(find.text('この回の変更・メモ'), findsNothing);
+    expect(tester.widget<TextFormField>(input('この回のメモ')).initialValue, '');
+    await tester.enterText(input('この回のメモ'), 'オンデマンドで動画を見る');
+    await tester.pumpAndSettle();
+    await screenshot(tester, capture, 'session-inline-notes-mobile');
+    final dialog = find.byType(AlertDialog);
+    final close = find.descendant(of: dialog, matching: find.byTooltip('閉じる'));
+    final assignment = find.descendant(of: dialog, matching: find.widgetWithText(FilledButton, '課題'));
+    expect(find.descendant(of: dialog, matching: find.widgetWithText(TextButton, '補講')), findsNothing);
+    expect(find.text('休講・補講の設定'), findsNothing);
+    expect(find.descendant(of: assignment, matching: find.byIcon(Icons.add)), findsOneWidget);
+    expect(tester.getCenter(close).dy, lessThan(tester.getCenter(assignment).dy));
+    expect(tester.getCenter(close).dx, greaterThan(tester.getCenter(dialog).dx));
+    await tester.tap(close);
+    await tester.pumpAndSettle();
+    expect(savedNotes(), 'オンデマンドで動画を見る');
+    await open();
+    await tester.enterText(input('この回のメモ'), '外側で閉じる');
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(savedNotes(), '外側で閉じる');
+    await open();
+    await tester.enterText(input('この回のメモ'), '戻るで閉じる');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(savedNotes(), '戻るで閉じる');
+    await open();
+    await tester.enterText(input('この回のメモ'), '休講理由のメモ');
+    await tester.tap(find.byTooltip('閉じる'));
+    await tester.pumpAndSettle();
+    expect(savedNotes(), '休講理由のメモ');
+    await tester.longPress(card());
+    await tester.pumpAndSettle();
+    expect(find.text('補講を取り消しますか？'), findsOneWidget);
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(savedNotes(), '休講理由のメモ');
+    expect(storage.database.data.find('courses', meeting['course_id'] as String)?['notes'], contains('今週のメモ'));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('時間割の編集内容は保存まで変更せず破棄で元に戻りナビを隠す', (tester) async {
     populate();
@@ -423,7 +920,7 @@ void main() {
     await tester.tap(find.text('情報科学').last);
     await tester.pumpAndSettle();
     await tester.enterText(input('課題名'), '科目選択後の提出');
-    await tester.tap(find.text('時間割から提出日時を選ぶ'));
+    await tester.tap(find.text('時間割から選択'));
     await tester.pumpAndSettle();
     final lecture = find.descendant(
         of: find.byType(AlertDialog), matching: find.text('情報科学'));
@@ -483,11 +980,11 @@ void main() {
           tester, key, 'unitable-0111-dark${oled ? '-oled' : ''}-tasks');
       await tester.tap(find.byTooltip('課題を追加'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('時間割から提出日時を選ぶ'));
+      await tester.tap(find.text('時間割から選択'));
       await tester.pumpAndSettle();
       expect(Theme.of(tester.element(find.byType(AlertDialog))).brightness,
           Brightness.dark);
-      await tester.tap(find.text('キャンセル').last);
+      await tester.tap(find.byTooltip('閉じる'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('キャンセル').last);
       await tester.pumpAndSettle();
@@ -592,7 +1089,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('日曜授業').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('時間割から提出日時を選ぶ'));
+    await tester.tap(find.text('時間割から選択'));
     await tester.pumpAndSettle();
     expect(
         find.descendant(
@@ -621,7 +1118,7 @@ void main() {
     await tester.tap(find.text('情報科学').last);
     await tester.pumpAndSettle();
     await tester.enterText(input('課題名'), '他科目の開始に提出');
-    await tester.tap(find.text('時間割から提出日時を選ぶ'));
+    await tester.tap(find.text('時間割から選択'));
     await tester.pumpAndSettle();
     final framed = find.byWidgetPredicate((w) =>
         w is Container &&
@@ -663,7 +1160,7 @@ void main() {
     await tester.tap(find.byTooltip('課題を追加'));
     await tester.pumpAndSettle();
     await tester.enterText(input('課題名'), '空き時間までに提出');
-    await tester.tap(find.text('時間割から提出日時を選ぶ'));
+    await tester.tap(find.text('時間割から選択'));
     await tester.pumpAndSettle();
     final empty = find
         .byWidgetPredicate((w) =>
@@ -995,7 +1492,7 @@ void main() {
     expect(find.textContaining('提出先: 大学LMS'), findsOneWidget);
     expect(find.textContaining('提出時間: 17:00'), findsOneWidget);
     expect(find.text('講義の予定はありません'), findsNothing);
-    await tester.tap(find.text('閉じる'));
+    await tester.tap(find.byTooltip('閉じる'));
     await tester.pumpAndSettle();
     expect(tester.getSize(heading).width, greaterThan(40));
     expect(tester.takeException(), isNull);
@@ -1206,7 +1703,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('テスト祝日'), findsOneWidget);
     expect(find.text('代替日'), findsOneWidget);
-    await tester.tap(find.text('閉じる'));
+    await tester.tap(find.byTooltip('閉じる'));
     await tester.pumpAndSettle();
     calendar.scrollController.jumpTo(0);
     await tester.pumpAndSettle();
@@ -1619,7 +2116,7 @@ void main() {
         await tester.tap(find.byTooltip('課題を追加'));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        await tester.tap(find.text('時間割から提出日時を選ぶ'));
+        await tester.tap(find.text('時間割から選択'));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         await tester.tapAt(const Offset(1, 1));

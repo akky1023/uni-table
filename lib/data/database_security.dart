@@ -41,6 +41,10 @@ void validateDatabaseSchema(Database db, String trustedSchema, int version) {
       'exam_period_id TEXT REFERENCES events(id) ON DELETE CASCADE',
       'period_id TEXT REFERENCES events(id) ON DELETE CASCADE',
       'legacy_origin_id TEXT',
+      'is_makeup INTEGER NOT NULL DEFAULT 0',
+    ],
+    'session_changes': [
+      "notes TEXT NOT NULL DEFAULT ''",
     ],
     'tasks': [
       'context_meeting_id TEXT REFERENCES meetings(id) ON DELETE SET NULL',
@@ -99,7 +103,10 @@ void validateDatabaseSchema(Database db, String trustedSchema, int version) {
       if ((name == 'meetings' && version >= 5) ||
           (name == 'tasks' && version >= 5) ||
           name == 'settings' || name == 'event_ranges')
-        for (final clause in additions[name] ?? <String>[]) _tokens(clause),
+        for (final clause in additions[name] ?? <String>[])
+          if (version >= 7 || !clause.startsWith('is_makeup ')) _tokens(clause),
+      if (name == 'session_changes' && version >= 7)
+        for (final clause in additions[name]!) _tokens(clause),
       if (name == 'meetings' && version == 4) _tokens(additions[name]!.first),
     ].map((c) => c.join('\u0000'));
     if (clauses.toSet().length != clauses.length ||

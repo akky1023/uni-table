@@ -180,7 +180,7 @@ void main() {
     expect(change['holiday_name'], '昭和の日');
     expect(change['is_national'], 1);
     expect(db.data.rows('events').single['id'], 'break');
-    expect(db.db.select('PRAGMA user_version').single.values.single, 6);
+    expect(db.db.select('PRAGMA user_version').single.values.single, 7);
     db.dispose();
     final reopened = UnitDatabase.open(path);
     expect(reopened.data.rows('day_changes').length, 1);

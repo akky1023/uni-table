@@ -52,6 +52,38 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   late final notices = widget.notificationService ?? NotificationService();
   late final Future<String> applicationVersion = loadAppVersion();
   int page = 0;
+  Completer<String?>? makeupCourseSelection;
+  bool get choosingMakeupCourse => makeupCourseSelection != null;
+  Completer<DeadlineChoice?>? makeupDestinationSelection;
+  DateTime? weekBeforeMakeupSelection;
+  bool get choosingMakeupDestination => makeupDestinationSelection != null;
+  bool get selectingTimetable => choosingMakeupCourse || choosingMakeupDestination;
+
+  void cancelTimetableSelection() {
+    if (choosingMakeupCourse) finishMakeupCourseSelection(null);
+    if (choosingMakeupDestination) finishMakeupDestinationSelection(null);
+  }
+
+  Future<DeadlineChoice?> chooseMakeupDestination(DateTime initialDate) {
+    final selection = Completer<DeadlineChoice?>();
+    setState(() {
+      weekBeforeMakeupSelection = week;
+      week = beginningOfWeek(initialDate);
+      makeupDestinationSelection = selection;
+    });
+    return selection.future;
+  }
+
+  void finishMakeupDestinationSelection(DeadlineChoice? choice) {
+    final selection = makeupDestinationSelection;
+    if (selection == null) return;
+    setState(() {
+      week = weekBeforeMakeupSelection ?? week;
+      weekBeforeMakeupSelection = null;
+      makeupDestinationSelection = null;
+    });
+    if (!selection.isCompleted) selection.complete(choice);
+  }
   DateTime week = shiftDay(DateTime.now(), 1 - DateTime.now().weekday);
   late int year;
   bool timetableEditing = false,
@@ -245,6 +277,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    if (makeupCourseSelection != null && !makeupCourseSelection!.isCompleted) makeupCourseSelection!.complete(null);
+    if (makeupDestinationSelection != null && !makeupDestinationSelection!.isCompleted) makeupDestinationSelection!.complete(null);
     notices.onAddTask = null;
     WidgetsBinding.instance.removeObserver(this);
     widget.storage.database.removeListener(changed);
@@ -396,12 +430,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               child: AnimatedRotation(
                   turns: calendarMenuOpen ? .125 : 0,
                   duration: duration,
-                  child: StatusMark(
-                      shape: 10,
-                      size: 24,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      label: calendarMenuOpen ? strings.close : strings.add,
-            ))),
+                  child: const Icon(Icons.add))),
         ]);
   }
 
@@ -462,6 +491,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       ];
 
   void selectPage(int index) {
+    if (selectingTimetable) return;
     scaffoldKey.currentState?.closeDrawer();
     if (page == index && index == 2) {
       returnToToday();
@@ -621,13 +651,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 icon: const Icon(Icons.arrow_back)),
           if (desktop && !openMenu && !hideNavigation)
             IconButton(
-                onPressed: () => scaffoldKey.currentState?.openDrawer(),
+                onPressed: selectingTimetable ? null : () => scaffoldKey.currentState?.openDrawer(),
                 icon: const Icon(Icons.menu)),
           Expanded(
               child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(titles[page],
+                  child: Text(choosingMakeupCourse ? strings.selectMakeupCourse : choosingMakeupDestination ? strings.selectMakeupSlot : titles[page],
                       maxLines: 1,
                       style: const TextStyle(
                           fontSize: 25, fontWeight: FontWeight.w600)))),
@@ -636,13 +666,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2)),
-          if (page == 0) modeControl(timetableEditing, startTimetableEditing),
+          if (page == 0)
+            selectingTimetable
+                ? IconButton(tooltip: strings.close, onPressed: cancelTimetableSelection, icon: const Icon(Icons.close))
+                : modeControl(timetableEditing, startTimetableEditing),
           if (page == 2) modeControl(calendarEditing, setCalendarEditing),
         ]);
         return PopScope(
-            canPop: !(page == 0 && timetableEditing ||
+            canPop: !(selectingTimetable || page == 0 && timetableEditing ||
                 page == 2 && calendarEditing),
             onPopInvokedWithResult: (didPop, result) {
+              if (!didPop && selectingTimetable) { cancelTimetableSelection(); return; }
               if (!didPop &&
                   (page == 0 && timetableEditing ||
                       page == 2 && calendarEditing)) {
@@ -681,7 +715,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   Expanded(
                       child: ContextActions(
                           desktop: desktop,
-                          actions: pageActions,
+                          actions: selectingTimetable ? [] : pageActions,
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -734,7 +768,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   ? null
                   : NavigationBar(
                       selectedIndex: page,
-                      onDestinationSelected: selectPage,
+                      onDestinationSelected: selectingTimetable ? null : selectPage,
                       destinations: [
                           for (var i = 0; i < titles.length; i++)
                             CenteredNavigationDestination(
@@ -856,6 +890,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           else
             lectureEditorGrid(),
           const SizedBox(height: 18),
+          section(strings.makeupLabel, [
+            for (final m in data.rows('meetings').where((m) => m['is_makeup'] == 1))
+              ListTile(title: Text(data.find('courses', m['course_id'] as String)?['name'] as String? ?? ''),
+                  subtitle: Text('${m['once_date']} · ${strings.timeSlotNumber(data.find('slots', m['slot_id'] as String)?['position'] ?? '')}'),
+                  trailing: const Icon(Icons.edit_outlined), onTap: () => editMakeup(row: m)),
+          ]),
           section(strings.oneOffClass, [
             for (final group in intensiveGroups) intensiveEntry(group),
             TextButton.icon(
@@ -960,7 +1000,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 height: 64,
                                 child: Center(
                                     child: Text(
-                                        '${weekdays[date.weekday - 1]}\n${date.month}/${date.day}',
+                                        choosingMakeupCourse ? weekdays[date.weekday - 1] : '${weekdays[date.weekday - 1]}\n${date.month}/${date.day}',
                                         textAlign: TextAlign.center))),
                             for (final slot in data.slots)
                               SizedBox(
@@ -1143,7 +1183,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final groups = <String, List<DbRow>>{};
     for (final meeting in data
         .rows('meetings')
-        .where((m) => m['once_date'] != null && m['exam_period_id'] == null)) {
+        .where((m) => m['once_date'] != null && m['exam_period_id'] == null && m['is_makeup'] != 1)) {
       groups.putIfAbsent(meeting['course_id'] as String, () => []).add(meeting);
     }
     return groups.values.toList();
@@ -1188,7 +1228,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               final meetings = data
                   .rows('meetings')
                   .where((m) =>
-                      m['course_id'] == courseId && m['once_date'] != null)
+                      m['course_id'] == courseId && m['once_date'] != null && m['is_makeup'] != 1)
                   .toList();
               final dates = meetings
                   .map((m) => m['once_date'] as String)
@@ -1243,7 +1283,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
     final previous = data
         .rows('meetings')
-        .where((m) => m['course_id'] == courseId && m['once_date'] == oldDate)
+        .where((m) => m['course_id'] == courseId && m['once_date'] == oldDate && m['is_makeup'] != 1)
         .toList();
     final date = text(oldDate ?? dayKey(DateTime.now()));
     final slots = previous.isEmpty
@@ -1385,45 +1425,43 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         return due != null && dayKey(due) == dayKey(date);
       }).toList();
   bool replacementDay(DateTime date) => isReplacementDate(data, date);
-  Color timetableColor(DateTime date, DbRow slot) {
-    final sessions =
-        engine.onDay(date).where((s) => s.slot['id'] == slot['id']).toList();
-    if (sessions.isEmpty) return appColor(context, data, 'empty');
-    if (date.isBefore(dateOnly(DateTime.now()))) {
+  Color sessionColor(Session session, {bool recurringLayout = false}) {
+    if (session.cancelled || !recurringLayout && session.date.isBefore(dateOnly(DateTime.now()))) {
       return appColor(context, data, 'past');
     }
-    if (sessions.any((s) => s.meeting['exam_period_id'] != null)) {
-      return appColor(context, data, 'exam');
-    }
-    if (sessions.any((s) => s.meeting['once_date'] != null)) {
-      return appColor(context, data, 'single');
-    }
-    if (replacementDay(date)) {
+    final day = recurringLayout ? null : engine.dayChange(session.date);
+    if (session.makeup || day?['source_weekday'] != null && day?['cancelled'] != 1) {
       return appColor(context, data, 'replacement');
     }
-    if (engine.isClosed(date)) {
-      return appColor(context, data, 'closure');
-    }
+    if (session.meeting['exam_period_id'] != null) return appColor(context, data, 'exam');
+    if (session.meeting['once_date'] != null) return appColor(context, data, 'single');
+    if (!recurringLayout && engine.isClosed(session.date)) return appColor(context, data, 'closure');
     return appColor(context, data, 'lecture');
   }
 
-  Widget weekControls(DateTime value, ValueChanged<DateTime> change) => Wrap(
+  Color timetableColor(DateTime date, DbRow slot) {
+    final sessions = engine.onDay(date).where((s) => s.slot['id'] == slot['id']).toList();
+    return sessions.isEmpty ? appColor(context, data, 'empty')
+        : sessionColor(sessions.where((s) => !s.cancelled).firstOrNull ?? sessions.first);
+  }
+
+  Widget weekControls(DateTime value, ValueChanged<DateTime> change, {bool enabled = true}) => Wrap(
           spacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             IconButton(
                 tooltip: strings.previousWeek,
-                onPressed: () => change(shiftDay(value, -7)),
+                onPressed: enabled ? () => change(shiftDay(value, -7)) : null,
                 icon: const Icon(Icons.chevron_left)),
             Text(MediaQuery.sizeOf(context).width < 650
                 ? '${value.year} ${value.month}/${value.day}–${shiftDay(value, 6).month}/${shiftDay(value, 6).day}'
                 : '${dayKey(value)} ～ ${dayKey(shiftDay(value, 6))}'),
             IconButton(
                 tooltip: strings.nextWeek,
-                onPressed: () => change(shiftDay(value, 7)),
+                onPressed: enabled ? () => change(shiftDay(value, 7)) : null,
                 icon: const Icon(Icons.chevron_right)),
             TextButton(
-                onPressed: value == beginningOfWeek(DateTime.now())
+                onPressed: !enabled || value == beginningOfWeek(DateTime.now())
                     ? null
                     : () => change(beginningOfWeek(DateTime.now())),
                 child: Text(strings.thisWeek))
@@ -1448,7 +1486,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Widget dayHeading(DateTime date, {bool picking = false}) => ContextActions(
       desktop: desktop,
-      actions: picking
+      actions: picking || selectingTimetable
           ? []
           : [
               ContextAction(strings.dayChanges, () => editDay(date)),
@@ -1459,10 +1497,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           width: double.infinity,
           child: TextButton(
               style: TextButton.styleFrom(
+                  disabledForegroundColor: selectingTimetable ? Theme.of(context).colorScheme.primary : null,
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   minimumSize: const Size(0, 44),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-              onPressed: picking ? null : () => showDay(date, tasksOnly: true),
+              onPressed: picking || selectingTimetable ? null : () => showDay(date, tasksOnly: true),
               child: LayoutBuilder(
                   builder: (context, size) => Stack(
                           alignment: Alignment.center,
@@ -1473,18 +1512,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                 child: Padding(
                                     padding: const EdgeInsets.only(top: 8),
                                     child: Text(
-                                        '${weekdays[date.weekday - 1]}\n${date.month}/${date.day}',
+                                        choosingMakeupCourse ? weekdays[date.weekday - 1] : '${weekdays[date.weekday - 1]}\n${date.month}/${date.day}',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                             fontSize: 12,
-                                            color: date.isBefore(
+                                            color: !selectingTimetable && date.isBefore(
                                                     dateOnly(DateTime.now()))
                                                 ? mutedText(context,
                                                     stronger: data.setting(
                                                             'dark_text', '0') ==
                                                         '1')
                                                 : null)))),
-                            if (!picking && tasksOn(date).isNotEmpty)
+                            if (!picking && !selectingTimetable && tasksOn(date).isNotEmpty)
                               Positioned(
                                   right:
                                       max(2.0, (size.maxWidth - 12) / 2 - 12),
@@ -1494,7 +1533,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           ])))));
 
   Widget timetable() => Column(children: [
-        weekControls(week, (v) => setState(() => week = v)),
+        Visibility(visible: !choosingMakeupCourse,
+            maintainSize: true, maintainAnimation: true, maintainState: true,
+            child: weekControls(week, (v) => setState(() => week = v))),
         SizedBox(height: desktop ? 12 : 4),
         Expanded(
             child: visibleWeekdays.isEmpty
@@ -1560,8 +1601,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 ])),
             Expanded(
                 child: WeeklyPager(
+                    key: choosingMakeupDestination ? const ValueKey('timetable-picker-pager') : null,
                     week: week,
-                    swipeEnabled: !desktop,
+                    swipeEnabled: !desktop && !choosingMakeupCourse,
                     onChanged: (v) => setState(() => week = v),
                     builder: (first) {
                       final dates = [
@@ -1610,6 +1652,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   child: DayStrip(
                       key: ValueKey('day-strip-${offsets.join('-')}'),
                       week: week,
+                      swipeEnabled: !choosingMakeupCourse,
                       offsets: offsets,
                       columnWidth: double.tryParse(data.setting(
                               'timetable_column_width',
@@ -1680,16 +1723,26 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   Widget dayColumn(DateTime date, double rowHeight,
       {ValueChanged<DeadlineChoice>? pick, String? courseId}) {
+    if (choosingMakeupDestination) pick = finishMakeupDestinationSelection;
     final sessions =
-        engine.onDay(date, includeCancelled: pick == null).toList();
+        choosingMakeupCourse ? makeupCourseSessions(date) : engine.onDay(date, includeCancelled: pick == null).toList();
+    final makeupSlots = sessions.where((s) => s.makeup && !s.cancelled).map((s) => s.slot['id']).toSet();
+    sessions.removeWhere((s) => s.cancelled && makeupSlots.contains(s.slot['id']));
     final noClasses = engine.onDay(date, includeCancelled: false).isEmpty;
     final past = date.isBefore(dateOnly(DateTime.now()));
-    if (pick == null && engine.isClosed(date) && noClasses) {
-      return ContextActions(
+    if (!choosingMakeupCourse && pick == null && engine.isClosed(date) && noClasses) {
+      return holdAnchoredCell(onLongPress: (anchor) => addMakeup(anchor: anchor, day: date),
+          onPositionedLongPress: (area, position) {
+            if (data.slots.isEmpty) { message(strings.configureTimeSlots); return; }
+            final index = (position.dy / rowHeight).floor().clamp(0, data.slots.length - 1);
+            final anchor = Rect.fromLTWH(area.left, area.top + index * rowHeight, area.width, rowHeight);
+            addMakeup(anchor: anchor, day: date, slotId: data.slots[index]['id'] as String);
+          },
+          child: ContextActions(
           desktop: desktop,
           actions: [
             ContextAction(strings.dayChanges, () => editDay(date)),
-            ContextAction(strings.daySchedule, () => showDay(date))
+            ContextAction(strings.daySchedule, () => showDay(date)),
           ],
           child: InkWell(
               onTap: () => showDay(date),
@@ -1726,7 +1779,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                       fontFeatures: [
                                         FontFeature('vert'),
                                         FontFeature('vrt2')
-                                      ]))))))));
+                                      ])))))))));
     }
     return Column(children: [
       for (final slot in data.slots)
@@ -1736,14 +1789,16 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             height: rowHeight - cellMargin * 2,
             margin: EdgeInsets.all(cellMargin),
             decoration: BoxDecoration(
-                color: pick != null &&
+                color: selectingTimetable
+                    ? selectionCellColor(sessions, slot)
+                    : pick != null &&
                         !sessions.any((s) => s.slot['id'] == slot['id'])
                     ? appColor(context, data, 'empty')
                     : timetableColor(date, slot),
                 borderRadius: BorderRadius.circular(desktop ? 6 : 2)),
             child: ContextActions(
                 desktop: desktop,
-                actions: pick == null
+                actions: pick == null && !choosingMakeupCourse
                     ? [
                         ContextAction(strings.dayChanges, () => editDay(date)),
                         ContextAction(
@@ -1753,23 +1808,29 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       ]
                     : [],
                 child: Column(children: [
+                  if (pick == null && !sessions.any((s) => s.slot['id'] == slot['id']))
+                    Expanded(child: holdAnchoredCell(
+                        onLongPress: (anchor) => addMakeup(anchor: anchor, day: date, slotId: slot['id'] as String),
+                        child: Container(color: Colors.transparent))),
                   if (pick != null &&
                       !sessions.any((s) => s.slot['id'] == slot['id']))
                     Expanded(
                         child: InkWell(
                             key: ValueKey(
                                 'deadline-empty-${dayKey(date)}-${slot['id']}'),
-                            onTap: () => pick(DeadlineChoice(date, slot)),
+                            onTap: () => pick!(DeadlineChoice(date, slot)),
                             child: const SizedBox.expand())),
                   for (final session
                       in sessions.where((s) => s.slot['id'] == slot['id']))
                     Expanded(
-                        child: pick == null
+                        child: selectingTimetable
+                            ? makeupSelectionCard(session)
+                            : pick == null
                             ? sessionCard(session,
                                 past: date.isBefore(dateOnly(DateTime.now())))
                             : InkWell(
                                 onTap: () =>
-                                    pick(DeadlineChoice.fromSession(session)),
+                                    pick!(DeadlineChoice.fromSession(session)),
                                 child: Center(
                                     child: Container(
                                         key: ValueKey(
@@ -1794,11 +1855,61 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     ]);
   }
 
-  Widget sessionCard(Session session, {bool past = false}) => ContextActions(
+  Widget holdTimetableCell({required Widget child, required VoidCallback onLongPress}) =>
+      choosingMakeupCourse ? child : TimedLongPress(milliseconds: int.tryParse(data.setting('calendar_long_press_ms', '500')) ?? 500,
+          onLongPress: onLongPress, child: child);
+
+  Widget holdAnchoredCell({required Widget child, required ValueChanged<Rect> onLongPress,
+      void Function(Rect, Offset)? onPositionedLongPress}) => choosingMakeupCourse ? child : Builder(builder: (cellContext) {
+    Rect anchor() {
+      final box = cellContext.findRenderObject() as RenderBox;
+      final overlay = Navigator.of(context, rootNavigator: true).overlay!.context.findRenderObject() as RenderBox;
+      return box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
+    }
+    return TimedLongPress(
+        milliseconds: int.tryParse(data.setting('calendar_long_press_ms', '500')) ?? 500,
+        onLongPress: () { if (onPositionedLongPress == null) onLongPress(anchor()); },
+        onLongPressStart: onPositionedLongPress == null ? null
+            : (details) => onPositionedLongPress(anchor(), details.localPosition),
+        child: child);
+  });
+
+  Color selectionCellColor(List<Session> sessions, DbRow slot) {
+    final session = sessions.where((s) => s.slot['id'] == slot['id']).firstOrNull;
+    return session == null ? appColor(context, data, 'empty') : sessionColor(session, recurringLayout: choosingMakeupCourse);
+  }
+
+  Widget makeupSelectionCard(Session session) => InkWell(
+      onTap: () => choosingMakeupCourse
+          ? finishMakeupCourseSelection(session.course['id'] as String)
+          : finishMakeupDestinationSelection(DeadlineChoice.fromSession(session)),
+      child: Padding(padding: const EdgeInsets.fromLTRB(2, 2, 2, 4),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(child: Center(child: Text(session.course['name'] as String,
+                textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis,
+                style: TextStyle(height: 1.3, fontSize: double.tryParse(data.setting(
+                    'course_font_size', defaultCourseFontSize)) ?? double.parse(defaultCourseFontSize))))),
+            Text(session.room, textAlign: TextAlign.center, maxLines: 1,
+                overflow: TextOverflow.ellipsis, style: TextStyle(height: 1.3,
+                    fontSize: double.tryParse(data.setting('room_font_size', defaultRoomFontSize)) ?? double.parse(defaultRoomFontSize))),
+          ])));
+
+  Widget sessionCard(Session session, {bool past = false}) => Builder(builder: (cellContext) => holdTimetableCell(
+      onLongPress: () {
+        if (isOneOffLecture(session)) return;
+        final box = cellContext.findRenderObject() as RenderBox;
+        final overlay = Navigator.of(context, rootNavigator: true).overlay!.context.findRenderObject() as RenderBox;
+        final anchor = box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
+        if (session.makeup) { cancelMakeup(session, anchor: anchor); }
+        else { editSession(session, anchor: anchor); }
+      },
+      child: Container(key: ValueKey('session-${session.key}-${dayKey(session.date)}-${session.slot['id']}'),
+      decoration: BoxDecoration(color: sessionColor(session),
+          borderRadius: BorderRadius.circular(desktop ? 6 : 2)),
+      child: ContextActions(
       desktop: desktop,
-      actions: [
+      actions: choosingMakeupCourse ? [] : [
         ContextAction(strings.courseDetails, () => showSession(session)),
-        ContextAction(strings.dayChanges, () => editSession(session)),
         ContextAction(
         strings.changeDayAndTime, () => editMeeting(row: session.meeting)),
         ContextAction(strings.editCourse, () => editCourse(session.course)),
@@ -1807,7 +1918,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         strings.deleteClass, () => confirmRemove('meetings', session.meeting, strings.classLabel))
       ],
       child: InkWell(
-          onTap: () => showSession(session),
+          onTap: () => choosingMakeupCourse
+              ? finishMakeupCourseSelection(session.course['id'] as String) : showSession(session),
           child: Stack(children: [
             Padding(
                 padding: const EdgeInsets.fromLTRB(2, 2, 2, 4),
@@ -1827,7 +1939,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                               defaultCourseFontSize)) ??
                                           double.parse(defaultCourseFontSize),
                                       height: 1.3,
-                                      color: past
+                                      color: past || session.cancelled
                                           ? mutedText(context,
                                               stronger: data.setting(
                                                       'dark_text', '0') ==
@@ -1837,7 +1949,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                           ? TextDecoration.lineThrough
                                           : null)))),
                       Text(
-                  '${session.room}${session.cancelled ? strings.cancelledSuffix : ''}',
+                  session.room,
                           textAlign: TextAlign.center,
                           softWrap: true,
                           maxLines: 1,
@@ -1848,7 +1960,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                           defaultRoomFontSize)) ??
                                   double.parse(defaultRoomFontSize),
                               height: 1.3,
-                              color: past
+                              color: past || session.cancelled
                                   ? mutedText(context,
                                       stronger:
                                           data.setting('dark_text', '0') == '1')
@@ -1859,7 +1971,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   top: 2,
                   right: 2,
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (session.replacement || replacementDay(session.date))
+                    if (session.makeup)
                       StatusMark(
                           shape: 6,
                           filled: false,
@@ -1873,7 +1985,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           label: strings.oneOffClass,
                     ),
                   ])),
-          ])));
+          ]))))));
 
   List<String> taskDetails(DbRow task, {bool timeOnly = false}) {
     final due = engine.taskDeadline(task),
@@ -1909,7 +2021,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<void> showTask(DbRow task) => showAppDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-              title: Text(task['title'] as String),
+              title: dismissibleDialogTitle(ctx, task['title'] as String),
               content: SizedBox(
                   width: 500,
                   child: SingleChildScrollView(
@@ -1933,16 +2045,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       editTask(row: task);
                     },
                     child: Text(strings.edit)),
-                TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text(strings.close)),
               ]));
 
   Future<void> showDay(DateTime day, {bool tasksOnly = false}) =>
       showAppDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
-                  title: Text(dayKey(day)),
+                  title: dismissibleDialogTitle(ctx, dayKey(day)),
                   content: SizedBox(
                       width: 500,
                       child: SingleChildScrollView(
@@ -1978,11 +2087,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                                     showTask(task);
                                   }),
                           ]))),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text(strings.close))
-                  ]));
+                  ));
 
   Widget sessionTile(Session s) => ListTile(
       contentPadding: EdgeInsets.zero,
@@ -1996,8 +2101,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       subtitle: Text(
       '${clock(s.slot['start_minute'] as int)}–${clock(s.slot['end_minute'] as int)}  ${s.room}  ${s.cancelled
           ? strings.cancelled
-          : s.replacement
-          ? strings.replacement
+          : s.makeup
+          ? strings.makeupLabel
           : ''}',
     ),
       trailing: const Icon(Icons.chevron_right));
@@ -2016,7 +2121,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         context: context,
         barrierDismissible: true,
         builder: (ctx) => AlertDialog(
-                title: Text(c['name'] as String),
+                title: dismissibleDialogTitle(ctx, c['name'] as String),
                 content: SizedBox(
                     width: 520,
                     child: SingleChildScrollView(
@@ -2045,9 +2150,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                           editMeeting(courseId: c['id'] as String);
                         },
                         child: Text(strings.addTimeSlot)),
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: Text(strings.close))
                 ]));
   }
 
@@ -2148,6 +2250,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       DateTime? day,
       int? weekdayValue,
       bool? single}) async {
+    if (row?['is_makeup'] == 1) {
+      await editMakeup(row: row!);
+      return;
+    }
     if (row?['exam_period_id'] != null) {
       await editExam(row!['exam_period_id'] as String,
           DateTime.parse(row['once_date'] as String), row['slot_id'] as String,
@@ -2346,112 +2452,334 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> showSession(Session s) async {
-    await showAppDialog<void>(
+  Future<void> showSession(Session s, {String? draftNotes}) async {
+    var notes = draftNotes ?? s.notes;
+    final action = await showAppDialog<String>(
         context: context,
         barrierDismissible: true,
         builder: (ctx) => AlertDialog(
-                title: Text(s.course['name'] as String),
-                content: SizedBox(
-                    width: 480,
-                    child: SingleChildScrollView(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                          Text(
-                  strings.sessionDetails(
-                    dayKey(s.date),
-                    s.slot['position'],
-                    clock(s.slot['start_minute'] as int),
-                    clock(s.slot['end_minute'] as int),
-                    s.room,
-                    s.course['teacher'],
-                  ),
-                ),
-                          if (s.cancelled)
-                  Padding(
-                                padding: EdgeInsets.only(top: 8),
-                                child: Text(strings.cancelledOnThisDay)),
-                          if (s.replacement) Text(strings.replacementFor(dayKey(s.sourceDate))),
-                          const SizedBox(height: 18),
-                          markdown(s.course['notes'] as String)
-                        ]))),
-                actions: [
-                  if (timetableEditing)
-                    TextButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          editSession(s);
-                        },
-                        child: Text(strings.dayChanges)),
-                  if (timetableEditing)
-                    TextButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          editMeeting(row: s.meeting);
-                        },
-                        child: Text(strings.recurringSettings)),
-                  TextButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        editTask(session: s);
-                      },
-                      child: Text(strings.addAssignment)),
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: Text(strings.close))
-                ]));
+            title: dismissibleDialogTitle(ctx, s.course['name'] as String),
+            content: SizedBox(width: 480,
+                child: SingleChildScrollView(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                  Text(strings.sessionDetails(dayKey(s.date), s.slot['position'],
+                      clock(s.slot['start_minute'] as int), clock(s.slot['end_minute'] as int),
+                      s.room, s.course['teacher'])),
+                  if (s.cancelled)
+                    Padding(padding: const EdgeInsets.only(top: 8),
+                        child: Text(strings.cancelledOnThisDay)),
+                  if (s.replacement) Text(strings.replacementFor(dayKey(s.sourceDate))),
+                  if (s.makeup) Text(strings.makeupLabel),
+                  if (s.change?['replacement_date'] != null && s.cancelled)
+                    Text('${s.change!['replacement_date']} · ${strings.timeSlotNumber(data.find('slots', s.change?['replacement_slot_id'] as String?)?['position'] ?? s.slot['position'])}'),
+                  const SizedBox(height: 18),
+                  Text(strings.courseNotes, style: Theme.of(ctx).textTheme.titleSmall),
+                  markdown(s.course['notes'] as String),
+                  const SizedBox(height: 16),
+                  TextFormField(initialValue: notes, minLines: 3, maxLines: 8,
+                      decoration: InputDecoration(labelText: strings.sessionNotes),
+                      onChanged: (value) => notes = value),
+                ]))),
+            actions: [
+              if (timetableEditing)
+                TextButton(onPressed: () => Navigator.pop(ctx, 'recurring'),
+                    child: Text(strings.recurringSettings)),
+              FilledButton.icon(onPressed: () => Navigator.pop(ctx, 'assignment'),
+                  icon: const Icon(Icons.add), label: Text(strings.sessionAddAssignment)),
+            ]));
+    if (notes != s.notes && mounted && data.find('meetings', s.meeting['id'] as String) != null) {
+      final old = engine.sessionChange(s.meeting['id'] as String, s.sourceDate);
+      try {
+        await put('session_changes', {
+          if (old != null) ...old,
+          'id': old?['id'] ?? newId(), 'meeting_id': s.meeting['id'],
+          'date': dayKey(s.sourceDate), 'notes': notes,
+        });
+      } catch (e) {
+        message(e.toString());
+        if (mounted) await showSession(s, draftNotes: notes);
+        return;
+      }
+    }
+    if (!mounted) return;
+    switch (action) {
+      case 'recurring': await editMeeting(row: s.meeting);
+      case 'assignment': await editTask(session: s);
+    }
   }
 
-  Future<void> editSession(Session s) async {
-    final old = engine.sessionChange(s.meeting['id'] as String, s.sourceDate);
-    var cancelled = old?['cancelled'] == 1;
-    final replacement = text(old?['replacement_date']),
-        room = text(old?['room']),
-        lead = text(old?['lead_minutes']);
-    var slot = old?['replacement_slot_id'] as String? ?? s.slot['id'] as String;
-    await editForm(
-        context,
-      strings.classOnDate(dayKey(s.sourceDate)),
-        (ctx, set) => Column(children: [
-              preferenceSwitch(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(strings.cancelled),
-                  value: cancelled,
-                  onChanged: (v) => set(() => cancelled = v)),
-              dateField(ctx, replacement,
-            strings.optionalReplacementDate,
-                  optional: true, onChanged: () => set(() {})),
-              if (replacement.text.isNotEmpty)
-                choice(strings.replacementTimeSlot,
-                    slot,
-                    {
-                      for (final p in data.slots)
-                        p['id'] as String: strings.timeSlotNumber(p['position']),
-            },
-                    (v) => set(() => slot = v)),
-              field(room, strings.roomOverride),
-              field(lead, strings.reminderOverride, number: true)
-            ]), () async {
-      if (replacement.text == dayKey(s.sourceDate)) {
-        throw FormatException(strings.replacementDateMustDiffer);
+  bool isOneOffLecture(Session session) =>
+      session.meeting['once_date'] != null && session.meeting['is_makeup'] != 1;
+
+  Future<List<Session>?> confirmMakeupConflicts(DeadlineChoice destination,
+      {required String courseId, String? meetingId, DateTime? sourceDate}) async {
+    final conflicts = engine.onDay(destination.date, includeCancelled: false)
+        .where((s) => s.slot['id'] == destination.slot['id'] &&
+            !(s.meeting['id'] == meetingId && s.sourceDate == sourceDate)).toList();
+    if (conflicts.any((s) => s.course['id'] == courseId)) return null;
+    if (conflicts.isEmpty) return conflicts;
+    final accepted = await showAppDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: dismissibleDialogTitle(ctx, conflicts.any(isOneOffLecture)
+            ? strings.replaceOneOffWithMakeupQuestion : strings.replaceLectureWithMakeupQuestion),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(strings.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(strings.register)),
+        ]));
+    return accepted == true && mounted ? conflicts : null;
+  }
+
+  void cancelMakeupConflicts(List<Session> conflicts) {
+    for (final session in conflicts) {
+      if (isOneOffLecture(session)) {
+        db.remove('meetings', session.meeting['id'] as String);
+        continue;
       }
-      await put('session_changes', {
-        'id': old?['id'] ?? newId(),
-        'meeting_id': s.meeting['id'],
-        'date': dayKey(s.sourceDate),
-        'cancelled': cancelled || replacement.text.isNotEmpty ? 1 : 0,
-        'replacement_date': replacement.text.isEmpty ? null : replacement.text,
-        'replacement_slot_id': replacement.text.isEmpty ? null : slot,
-        'room': room.text.isEmpty ? null : room.text,
-        'lead_minutes': lead.text.isEmpty ? null : int.parse(lead.text)
+      final current = engine.sessionChange(session.meeting['id'] as String, session.sourceDate);
+      db.put('session_changes', {
+        'id': current?['id'] ?? newId(), 'meeting_id': session.meeting['id'],
+        'date': dayKey(session.sourceDate), 'cancelled': 1,
+        'replacement_date': null, 'replacement_slot_id': null,
+      });
+    }
+  }
+
+  Future<void> editSession(Session s, {required Rect anchor}) async {
+    if (isOneOffLecture(s)) return;
+    final old = engine.sessionChange(s.meeting['id'] as String, s.sourceDate);
+    var cancelled = old?['cancelled'] == 1 || old?['replacement_date'] != null;
+    final replacementSlot = data.find('slots', old?['replacement_slot_id'] as String?) ?? s.slot;
+    DeadlineChoice? makeup = old?['replacement_date'] == null ? null
+        : DeadlineChoice(DateTime.parse(old!['replacement_date'] as String), replacementSlot);
+    var busy = false;
+    String? error;
+    final selectDestination = await showAnchoredBubble<bool>(context: context, anchor: anchor,
+        builder: (ctx) => StatefulBuilder(builder: (ctx, set) {
+          Future<void> persist(bool nextCancelled, DeadlineChoice? nextMakeup) async {
+            if (busy) return;
+            if (nextCancelled && nextMakeup != null && dayKey(nextMakeup.date) == dayKey(s.sourceDate) && nextMakeup.slot['id'] == s.meeting['slot_id']) {
+              return;
+            }
+            final previousCancelled = cancelled, previousMakeup = makeup;
+            set(() { busy = true; error = null; cancelled = nextCancelled; makeup = nextMakeup; });
+            try {
+              final current = engine.sessionChange(s.meeting['id'] as String, s.sourceDate);
+              await put('session_changes', {
+                'id': current?['id'] ?? newId(), 'meeting_id': s.meeting['id'],
+                'date': dayKey(s.sourceDate), 'cancelled': nextCancelled ? 1 : 0,
+                'replacement_date': nextCancelled && nextMakeup != null ? dayKey(nextMakeup.date) : null,
+                'replacement_slot_id': nextCancelled ? nextMakeup?.slot['id'] : null,
+              });
+              if (ctx.mounted) set(() => busy = false);
+            } catch (e) {
+              if (ctx.mounted) set(() { busy = false; error = e.toString(); cancelled = previousCancelled; makeup = previousMakeup; });
+            }
+          }
+          return Column(key: const ValueKey('session-settings-bubble'),
+              mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            InkWell(onTap: busy ? null : () => persist(!cancelled, !cancelled ? makeup : null),
+                child: Row(children: [
+                  Text(strings.cancelled, softWrap: false),
+                  const SizedBox(width: 16),
+                  const Spacer(),
+                  AppToggle(value: cancelled,
+                      onChanged: busy ? null : (v) => persist(v, v ? makeup : null),
+                      marks: data.setting('accessibility_marks', '0') == '1',
+                      still: data.setting('reduce_motion', '0') == '1'),
+                ])),
+            if (cancelled) ...[
+              if (makeup != null)
+                ListTile(contentPadding: EdgeInsets.zero,
+                    title: Text(makeupSlotLabel(makeup!)),
+                    trailing: IconButton(tooltip: strings.clearMakeupSlot,
+                        onPressed: busy ? null : () => persist(true, null), icon: const Icon(Icons.close))),
+              Align(alignment: Alignment.centerRight,
+                  child: OutlinedButton(onPressed: busy ? null : () => Navigator.pop(ctx, true),
+                      child: Text(strings.chooseSessionMakeup))),
+            ],
+            if (error != null) Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+          ]);
+        }));
+    if (selectDestination != true || !mounted) return;
+    final selected = await chooseMakeupDestination(makeup?.date ?? s.date);
+    if (selected == null || !mounted) return;
+    if (dayKey(selected.date) == dayKey(s.sourceDate) && selected.slot['id'] == s.meeting['slot_id']) {
+      return;
+    }
+    final conflicts = await confirmMakeupConflicts(selected,
+        courseId: s.course['id'] as String, meetingId: s.meeting['id'] as String, sourceDate: s.sourceDate);
+    if (conflicts == null || !mounted) return;
+    try {
+      final current = engine.sessionChange(s.meeting['id'] as String, s.sourceDate);
+      await commit(() {
+        cancelMakeupConflicts(conflicts);
+        db.put('session_changes', {
+          'id': current?['id'] ?? newId(), 'meeting_id': s.meeting['id'],
+          'date': dayKey(s.sourceDate), 'cancelled': 1,
+          'replacement_date': dayKey(selected.date), 'replacement_slot_id': selected.slot['id'],
+        });
+      });
+    } catch (e) { message(e.toString()); }
+  }
+
+  Future<void> cancelMakeup(Session s, {required Rect anchor}) async {
+    var busy = false;
+    String? error;
+    await showAnchoredBubble<void>(context: context, anchor: anchor,
+        builder: (ctx) => StatefulBuilder(builder: (ctx, set) => Column(
+          key: const ValueKey('cancel-makeup-bubble'), mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(strings.cancelMakeupQuestion),
+            if (error != null) Text(error!, style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              FilledButton(onPressed: busy ? null : () async {
+                set(() { busy = true; error = null; });
+                try {
+                  if (s.meeting['is_makeup'] == 1) {
+                    await remove('meetings', s.meeting);
+                  } else {
+                    final old = engine.sessionChange(s.meeting['id'] as String, s.sourceDate);
+                    await put('session_changes', {
+                      'id': old?['id'] ?? newId(), 'meeting_id': s.meeting['id'],
+                      'date': dayKey(s.sourceDate), 'cancelled': 1,
+                      'replacement_date': null, 'replacement_slot_id': null,
+                    });
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                } catch (e) {
+                  if (ctx.mounted) set(() { busy = false; error = e.toString(); });
+                }
+              }, child: Text(strings.cancelMakeup)),
+            ]),
+          ])));
+  }
+
+  String makeupSlotLabel(DeadlineChoice selected) =>
+      '${dayKey(selected.date)} · ${strings.timeSlotNumber(selected.slot['position'])} '
+      '(${clock(selected.slot['start_minute'] as int)}–${clock(selected.slot['end_minute'] as int)})';
+
+  Future<void> addMakeup({required Rect anchor, required DateTime day, String? slotId}) async {
+    if (data.rows('courses').isEmpty || data.slots.isEmpty) {
+      message(data.slots.isEmpty ? strings.configureTimeSlots : strings.makeupCourseRequired);
+      return;
+    }
+    final slot = slotId ?? data.slots.first['id'] as String;
+    final proceed = await showAnchoredBubble<bool>(context: context, anchor: anchor,
+        builder: (ctx) => FilledButton(key: const ValueKey('add-makeup-bubble'),
+            onPressed: () => Navigator.pop(ctx, true), child: Text(strings.addMakeup)));
+    if (proceed != true || !mounted) return;
+    final course = await chooseMakeupCourse();
+    if (course == null || !mounted) return;
+    final conflicts = await confirmMakeupConflicts(DeadlineChoice(day, data.find('slots', slot)!), courseId: course);
+    if (conflicts == null || !mounted) return;
+    try {
+      await commit(() {
+        cancelMakeupConflicts(conflicts);
+        db.put('meetings', {
+          'id': newId(), 'course_id': course, 'slot_id': slot,
+          'weekday': null, 'once_date': dayKey(day), 'is_makeup': 1,
+        });
+      });
+    } catch (e) { message(e.toString()); }
+  }
+
+  Future<String?> chooseMakeupCourse() async {
+    if (choosingMakeupCourse) return null;
+    final selection = Completer<String?>();
+    setState(() => makeupCourseSelection = selection);
+    return selection.future;
+  }
+
+  void finishMakeupCourseSelection(String? course) {
+    final selection = makeupCourseSelection;
+    if (selection == null) return;
+    setState(() => makeupCourseSelection = null);
+    if (!selection.isCompleted) selection.complete(course);
+  }
+
+  List<Session> makeupCourseSessions(DateTime date) {
+    // Course selection uses the recurring layout, even during a closed week.
+    final periods = timetablePeriods(data).where((p) => p['kind'] == 'teaching').toList();
+    final end = shiftDay(week, 6);
+    var relevant = periods.where((p) => (p['start_date'] as String).compareTo(dayKey(end)) <= 0 &&
+        (p['end_date'] as String).compareTo(dayKey(week)) >= 0).toList();
+    if (relevant.isEmpty && periods.isNotEmpty) {
+      int distance(DbRow p) => min(DateTime.parse(p['start_date'] as String).difference(week).inDays.abs(),
+          DateTime.parse(p['end_date'] as String).difference(week).inDays.abs());
+      periods.sort((a, b) => distance(a).compareTo(distance(b)));
+      relevant = [periods.first];
+    }
+    final result = <Session>[];
+    final seen = <String>{};
+    for (final m in data.rows('meetings')) {
+      // This undated picker lists the recurring timetable only.
+      if (m['once_date'] != null || m['is_makeup'] == 1) continue;
+      if (m['weekday'] != date.weekday) continue;
+      final period = meetingTerm(m);
+      if (period.isNotEmpty && !relevant.any((p) => p['id'] == period)) continue;
+      final course = data.find('courses', m['course_id'] as String?);
+      final slot = data.find('slots', m['slot_id'] as String?);
+      if (course == null || slot == null || !seen.add('${course['id']}:${slot['id']}')) continue;
+      result.add(Session(meeting: m, course: course, slot: slot, date: date, sourceDate: date));
+    }
+    return result;
+  }
+
+  Future<void> editMakeup({required DbRow row}) async {
+    if (data.rows('courses').isEmpty || data.slots.isEmpty) {
+      message(data.slots.isEmpty ? strings.configureTimeSlots : strings.makeupCourseRequired);
+      return;
+    }
+    var course = row['course_id'] as String;
+    final slot = data.find('slots', row['slot_id'] as String)!;
+    final oldDate = row['once_date'] as String;
+    final old = engine.sessionChange(row['id'] as String, DateTime.parse(oldDate));
+    var selected = DeadlineChoice(DateTime.parse(oldDate), slot);
+    final notes = text(old?['notes']), room = text(row['room']);
+    await editForm(context, strings.editMakeup,
+        (ctx, set) => Column(children: [
+          choice(strings.courseTitle, course, {
+            for (final c in data.rows('courses')) c['id'] as String: c['name'] as String,
+          }, (v) => set(() => course = v)),
+          Text(makeupSlotLabel(selected)),
+          OutlinedButton.icon(onPressed: () async {
+            final picked = await chooseDeadline(ctx, course,
+                title: strings.selectMakeupSlot, initialDate: selected.date);
+            if (picked != null) set(() => selected = picked);
+          }, icon: const Icon(Icons.view_week_outlined),
+              label: Text(strings.chooseMakeupFromTimetable)),
+          const SizedBox(height: 12),
+          field(room, strings.roomOverride),
+          field(notes, strings.sessionNotes, lines: 5),
+        ]), () async {
+      final id = row['id'] as String;
+      final date = dayKey(selected.date);
+      final conflicts = await confirmMakeupConflicts(selected,
+          courseId: course, meetingId: id, sourceDate: DateTime.parse(oldDate));
+      if (conflicts == null || !mounted) return false;
+      await commit(() {
+        cancelMakeupConflicts(conflicts);
+        db.put('meetings', {
+          ...row,
+          'id': id, 'course_id': course, 'slot_id': selected.slot['id'],
+          'weekday': null, 'once_date': date, 'is_makeup': 1,
+          'room': room.text.isEmpty ? null : room.text,
+        });
+        if (oldDate != date) {
+          db.db.execute('UPDATE session_changes SET date=? WHERE meeting_id=? AND date=?', [date, id, oldDate]);
+          db.db.execute('UPDATE tasks SET due_source_date=? WHERE due_meeting_id=? AND due_source_date=?', [date, id, oldDate]);
+          db.db.execute('UPDATE tasks SET context_source_date=? WHERE context_meeting_id=? AND context_source_date=?', [date, id, oldDate]);
+        }
+        db.put('session_changes', {
+          if (old != null) ...old,
+          'id': old?['id'] ?? newId(), 'meeting_id': id, 'date': date,
+          'notes': notes.text,
+        });
       });
       return true;
-    }, delete: old == null ? null : () => remove('session_changes', old));
-    replacement.dispose();
-    room.dispose();
-    lead.dispose();
+    }, delete: () => remove('meetings', row));
+    for (final c in [notes, room]) { c.dispose(); }
   }
 
   Future<void> removeTasks(List<DbRow> rows) async {
@@ -2878,9 +3206,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   Future<DeadlineChoice?> chooseDeadline(
-      BuildContext context, String? courseId) {
+      BuildContext context, String? courseId, {String? title, DateTime? initialDate}) {
     final next = nextCourseSession(courseId);
-    var selectedWeek = beginningOfWeek(next?.date ?? DateTime.now());
+    var selectedWeek = beginningOfWeek(initialDate ?? next?.date ?? DateTime.now());
     return showAppDialog<DeadlineChoice>(
         context: context,
         barrierDismissible: true,
@@ -2892,7 +3220,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     actionsPadding: const EdgeInsets.all(12),
-                    title: Text(strings.selectDeadline),
+                    title: dismissibleDialogTitle(ctx, title ?? strings.selectDeadline),
                     content: SizedBox(
                         width: 1000,
                         height: 520,
@@ -2909,16 +3237,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                   ),
                 ),
                           const SizedBox(height: 8),
-                          Expanded(
-                              child: weekGrid(selectedWeek,
-                                  courseId: courseId,
-                                  pick: (s) => Navigator.pop(ctx, s)))
+                          Expanded(child: WeeklyPager(
+                              key: const ValueKey('timetable-picker-pager'),
+                              week: selectedWeek, onChanged: (v) => set(() => selectedWeek = v),
+                              builder: (first) => weekGrid(first, courseId: courseId,
+                                  pick: (s) => Navigator.pop(ctx, s))))
                         ])),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text(strings.cancel))
-                    ])));
+)));
   }
 
   Future<void> editGlobalRules() async {
@@ -3125,7 +3450,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     final selected = await showAppDialog<DbRow>(
         context: context,
         barrierDismissible: true,
-        builder: (ctx) => SimpleDialog(title: Text(strings.choosePeriodToEdit), children: [
+        builder: (ctx) => SimpleDialog(title: dismissibleDialogTitle(ctx, strings.choosePeriodToEdit), children: [
               for (final e in periods)
                 SimpleDialogOption(
                     onPressed: () => Navigator.pop(ctx, e),
@@ -3747,6 +4072,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 : PopScope(
                     canPop: false,
                     onPopInvokedWithResult: (didPop, result) {
+              if (!didPop && selectingTimetable) { cancelTimetableSelection(); return; }
                       if (!didPop) setState(() => settingsCategory = null);
                     },
                     child: Column(children: [

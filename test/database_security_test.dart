@@ -68,7 +68,7 @@ void main() {
     raw.execute('PRAGMA user_version=3');
     raw.dispose();
     final db = UnitDatabase.open(path);
-    expect(db.db.userVersion, 6);
+    expect(db.db.userVersion, 7);
     db.dispose();
     UnitDatabase.open(path).dispose();
   });

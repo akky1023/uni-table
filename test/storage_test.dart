@@ -101,7 +101,7 @@ void main() {
         migrated.db
             .select("SELECT name FROM sqlite_master WHERE name='settings'"),
         isEmpty);
-    expect(migrated.db.select('PRAGMA user_version').first.values.first, 6);
+    expect(migrated.db.select('PRAGMA user_version').first.values.first, 7);
     migrated.dispose();
   });
 }

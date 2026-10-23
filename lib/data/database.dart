@@ -52,7 +52,7 @@ class UnitDatabase extends ChangeNotifier {
             applicationId) {
           throw FormatException(strings.invalidDatabase);
         }
-        if (![1, 2, 3, 4, 5, 6]
+        if (![1, 2, 3, 4, 5, 6, 7]
             .contains(db.select('PRAGMA user_version').first.values.first)) {
           throw FormatException(strings.unsupportedDatabaseVersion);
         }
@@ -236,6 +236,19 @@ class UnitDatabase extends ChangeNotifier {
           db.execute(
               'CREATE TABLE event_ranges (id TEXT PRIMARY KEY, event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE, start_date TEXT NOT NULL, end_date TEXT NOT NULL CHECK(end_date>=start_date))');
           db.execute('PRAGMA user_version = 6');
+          _checkRowCount(db);
+          db.execute('COMMIT');
+        } catch (_) {
+          db.execute('ROLLBACK');
+          rethrow;
+        }
+      }
+      if (db.userVersion < 7) {
+        db.execute('BEGIN IMMEDIATE');
+        try {
+          db.execute('ALTER TABLE meetings ADD COLUMN is_makeup INTEGER NOT NULL DEFAULT 0');
+          db.execute("ALTER TABLE session_changes ADD COLUMN notes TEXT NOT NULL DEFAULT ''");
+          db.execute('PRAGMA user_version = 7');
           _checkRowCount(db);
           db.execute('COMMIT');
         } catch (_) {

@@ -1611,10 +1611,10 @@ abstract class AppLocalizations {
   /// **'提出期限'**
   String get deadline;
 
-  /// Choose due date from timetable
+  /// Select from timetable
   ///
   /// In ja, this message translates to:
-  /// **'時間割から提出日時を選ぶ'**
+  /// **'時間割から選択'**
   String get chooseDeadlineFromTimetable;
 
   /// Submit to
@@ -2600,6 +2600,132 @@ abstract class AppLocalizations {
   /// In ja, this message translates to:
   /// **'年度・授業時間'**
   String get universitySettings;
+
+  /// No description provided for @editSession.
+  ///
+  /// In ja, this message translates to:
+  /// **'休講・補講の設定'**
+  String get editSession;
+
+  /// No description provided for @addMakeup.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講を追加'**
+  String get addMakeup;
+
+  /// No description provided for @editMakeup.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講を編集'**
+  String get editMakeup;
+
+  /// No description provided for @sessionNotes.
+  ///
+  /// In ja, this message translates to:
+  /// **'この回のメモ'**
+  String get sessionNotes;
+
+  /// No description provided for @courseNotes.
+  ///
+  /// In ja, this message translates to:
+  /// **'講義全体のメモ'**
+  String get courseNotes;
+
+  /// No description provided for @makeupCourseRequired.
+  ///
+  /// In ja, this message translates to:
+  /// **'先に講義を登録してください'**
+  String get makeupCourseRequired;
+
+  /// No description provided for @sameSessionDestination.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講先には休講と別の日付またはコマを指定してください'**
+  String get sameSessionDestination;
+
+  /// No description provided for @makeupLabel.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講'**
+  String get makeupLabel;
+
+  /// No description provided for @makeupSlot.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講のコマ'**
+  String get makeupSlot;
+
+  /// No description provided for @clearMakeupSlot.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講先を解除'**
+  String get clearMakeupSlot;
+
+  /// No description provided for @chooseMakeupFromTimetable.
+  ///
+  /// In ja, this message translates to:
+  /// **'時間割から補講のコマを選ぶ'**
+  String get chooseMakeupFromTimetable;
+
+  /// No description provided for @selectMakeupSlot.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講のコマを選択'**
+  String get selectMakeupSlot;
+
+  /// No description provided for @sessionAddAssignment.
+  ///
+  /// In ja, this message translates to:
+  /// **'課題'**
+  String get sessionAddAssignment;
+
+  /// No description provided for @sessionAddMakeup.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講'**
+  String get sessionAddMakeup;
+
+  /// No description provided for @cancelSessionQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'この回を休講にしますか？'**
+  String get cancelSessionQuestion;
+
+  /// No description provided for @chooseSessionMakeup.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講を選択'**
+  String get chooseSessionMakeup;
+
+  /// No description provided for @cancelMakeupQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講を取り消しますか？'**
+  String get cancelMakeupQuestion;
+
+  /// No description provided for @cancelMakeup.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講を取り消す'**
+  String get cancelMakeup;
+
+  /// No description provided for @selectMakeupCourse.
+  ///
+  /// In ja, this message translates to:
+  /// **'補講の講義を選択'**
+  String get selectMakeupCourse;
+
+  /// No description provided for @replaceLectureWithMakeupQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'もとの講義を休講にして登録しますか？'**
+  String get replaceLectureWithMakeupQuestion;
+
+  /// No description provided for @replaceOneOffWithMakeupQuestion.
+  ///
+  /// In ja, this message translates to:
+  /// **'単発講義を取り消して登録しますか？'**
+  String get replaceOneOffWithMakeupQuestion;
 }
 
 class _AppLocalizationsDelegate

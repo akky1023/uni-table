@@ -851,7 +851,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get deadline => '提出期限';
 
   @override
-  String get chooseDeadlineFromTimetable => '時間割から提出日時を選ぶ';
+  String get chooseDeadlineFromTimetable => '時間割から選択';
 
   @override
   String get destination => '提出先';
@@ -1392,4 +1392,67 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get universitySettings => '年度・授業時間';
+
+  @override
+  String get editSession => '休講・補講の設定';
+
+  @override
+  String get addMakeup => '補講を追加';
+
+  @override
+  String get editMakeup => '補講を編集';
+
+  @override
+  String get sessionNotes => 'この回のメモ';
+
+  @override
+  String get courseNotes => '講義全体のメモ';
+
+  @override
+  String get makeupCourseRequired => '先に講義を登録してください';
+
+  @override
+  String get sameSessionDestination => '補講先には休講と別の日付またはコマを指定してください';
+
+  @override
+  String get makeupLabel => '補講';
+
+  @override
+  String get makeupSlot => '補講のコマ';
+
+  @override
+  String get clearMakeupSlot => '補講先を解除';
+
+  @override
+  String get chooseMakeupFromTimetable => '時間割から補講のコマを選ぶ';
+
+  @override
+  String get selectMakeupSlot => '補講のコマを選択';
+
+  @override
+  String get sessionAddAssignment => '課題';
+
+  @override
+  String get sessionAddMakeup => '補講';
+
+  @override
+  String get cancelSessionQuestion => 'この回を休講にしますか？';
+
+  @override
+  String get chooseSessionMakeup => '補講を選択';
+
+  @override
+  String get cancelMakeupQuestion => '補講を取り消しますか？';
+
+  @override
+  String get cancelMakeup => '補講を取り消す';
+
+  @override
+  String get selectMakeupCourse => '補講の講義を選択';
+
+  @override
+  String get replaceLectureWithMakeupQuestion => 'もとの講義を休講にして登録しますか？';
+
+  @override
+  String get replaceOneOffWithMakeupQuestion => '単発講義を取り消して登録しますか？';
 }

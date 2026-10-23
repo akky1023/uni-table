@@ -76,8 +76,7 @@ bool isReplacementDate(SchoolData data, DateTime date) {
           engine.dayChange(date)?['cancelled'] != 1) ||
       data
           .rows('day_changes')
-          .any((d) => d['replacement_date'] == dayKey(date)) ||
-      engine.onDay(date).any((s) => s.replacement);
+          .any((d) => d['replacement_date'] == dayKey(date));
 }
 
 Color eventColor(SchoolData data, DbRow event, {bool dark = false}) {
