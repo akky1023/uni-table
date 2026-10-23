@@ -5,6 +5,46 @@ import 'package:unitable/ui/calendar_style.dart';
 import 'package:unitable/ui/status_marks.dart';
 
 void main() {
+  for (final dark in [false, true]) {
+    for (final editing in [false, true]) {
+      test('単日の全学休業日は長期休暇と同じ背景色になる (dark=$dark, editing=$editing)', () {
+        final date = shiftDay(dateOnly(DateTime.now()), 8);
+        final school = SchoolData({
+          'day_changes': [
+            {'id': 'closure', 'date': dayKey(date), 'cancelled': 1}
+          ],
+          'events': [
+            {
+              'id': 'vacation',
+              'kind': 'holiday',
+              'start_date': dayKey(shiftDay(date, 1)),
+              'end_date': dayKey(shiftDay(date, 7))
+            }
+          ],
+          'settings': [
+            // Closure colors must not depend on notification holiday settings.
+            {'id': 'notification_holidays', 'value': '{"closures":false}'},
+            {
+              'id': dark ? 'ui_palette_dark' : 'ui_palette_light',
+              'value': '{"calendar_closure_period":4281558681}'
+            }
+          ]
+        });
+        final single = calendarPaint(school, date, editing: editing, dark: dark);
+        final vacation = calendarPaint(school, shiftDay(date, 1),
+            editing: editing, dark: dark);
+        expect(single.colors, vacation.colors);
+        expect(single.colors, [const Color(0xff336699)]);
+        expect(single.rule, vacation.rule);
+
+        // Overlapping closure records must not add duplicate color bands.
+        school.rows('events').single['start_date'] = dayKey(date);
+        expect(calendarPaint(school, date, editing: editing, dark: dark).colors,
+            vacation.colors);
+      });
+    }
+  }
+
   final date = DateTime.now().add(const Duration(days: 8));
   SchoolData data(
       {bool examDay = false,
