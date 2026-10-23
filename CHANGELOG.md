@@ -2,6 +2,18 @@
 
 次のリリースからRelease Pleaseが自動更新します。
 
+## [1.3.0](https://github.com/akky1023/uni-table/compare/v1.2.0...v1.3.0) (2026-10-23)
+
+
+### 機能追加
+
+* make-up day and cancelled class ([0cc4ca3](https://github.com/akky1023/uni-table/commit/0cc4ca3a605adb7a65135361be717c31b3da6094))
+
+
+### 修正
+
+* holidays not coloured in calendar ([848685f](https://github.com/akky1023/uni-table/commit/848685f94ac0056f49794095f92b7ff4f8080e56))
+
 ## [1.2.0](https://github.com/akky1023/uni-table/compare/v1.1.2...v1.2.0) (2026-10-20)
 
 
