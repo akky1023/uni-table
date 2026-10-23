@@ -71,24 +71,29 @@ if ($Target -in @('all','android')) {
         $variantArgs = @($buildArgs)
         if ($debugBuild) { $variantArgs += '--dart-define=UNITABLE_NOTIFICATION_TEST=true' }
         $variantSuffix = if ($debugBuild) { '-debug' } else { '' }
-        & $flutter build apk --release --no-pub @variantArgs
+        & $flutter build apk --release --no-pub --split-per-abi @variantArgs
         Assert-Exit 'Android release build'
-        $apk = Join-Path $dist "UniTable-$version-android$variantSuffix.apk"
-        Copy-Item -LiteralPath 'build\app\outputs\flutter-apk\app-release.apk' -Destination $apk -Force
-        $apksigner = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\apksigner.bat'
-        & $apksigner verify --verbose $apk
-        Assert-Exit 'APK signature verification'
-        $aapt = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\aapt.exe'
-        $metadata = & $aapt dump badging $apk
-        Assert-Exit 'APK identity verification'
-        $expectedId = if ($debugBuild) { 'net.neomenia.unitable.debug' } else { 'net.neomenia.unitable' }
-        if (-not ($metadata | Where-Object { $_.StartsWith("package: name='$expectedId' ") })) {
-            throw "Unexpected Android application ID: $expectedId"
-        }
-        $resources = & $aapt dump resources $apk
-        Assert-Exit 'APK resource verification'
-        if (-not ($resources -match 'drawable/ic_notification')) {
-            throw 'Notification icon is missing from the release APK'
+        foreach ($abi in @('arm64-v8a', 'armeabi-v7a', 'x86_64')) {
+            $apk = Join-Path $dist "UniTable-$version-android-$abi$variantSuffix.apk"
+            Copy-Item -LiteralPath "build\app\outputs\flutter-apk\app-$abi-release.apk" -Destination $apk -Force
+            $apksigner = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\apksigner.bat'
+            & $apksigner verify --verbose $apk
+            Assert-Exit 'APK signature verification'
+            $aapt = Join-Path $env:ANDROID_HOME 'build-tools\36.0.0\aapt.exe'
+            $metadata = & $aapt dump badging $apk
+            Assert-Exit 'APK identity verification'
+            $expectedId = if ($debugBuild) { 'net.neomenia.unitable.debug' } else { 'net.neomenia.unitable' }
+            if (-not ($metadata | Where-Object { $_.StartsWith("package: name='$expectedId' ") })) {
+                throw "Unexpected Android application ID: $expectedId"
+            }
+            if (-not ($metadata | Where-Object { $_ -ceq "native-code: '$abi'" })) {
+                throw "Unexpected Android CPU architecture: $abi"
+            }
+            $resources = & $aapt dump resources $apk
+            Assert-Exit 'APK resource verification'
+            if (-not ($resources -match 'drawable/ic_notification')) {
+                throw 'Notification icon is missing from the release APK'
+            }
         }
     }
 }

@@ -75,6 +75,7 @@ class DayStrip extends StatefulWidget {
   final DateTime week;
   final List<int> offsets;
   final double columnWidth;
+  final bool swipeEnabled;
   final ValueChanged<DateTime> onChanged;
   final Widget Function(DateTime) builder;
   const DayStrip(
@@ -82,6 +83,7 @@ class DayStrip extends StatefulWidget {
       required this.week,
       required this.offsets,
       required this.columnWidth,
+      this.swipeEnabled = true,
       required this.onChanged,
       required this.builder});
   @override
@@ -142,6 +144,7 @@ class _DayStripState extends State<DayStrip> {
         controller: controller,
         scrollDirection: Axis.horizontal,
         primary: false,
+        physics: widget.swipeEnabled ? null : const NeverScrollableScrollPhysics(),
         itemExtent: widget.columnWidth,
         itemCount: (origin * 2 + 1) * widget.offsets.length,
         itemBuilder: (_, index) => widget.builder(shiftDay(

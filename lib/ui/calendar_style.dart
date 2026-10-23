@@ -76,8 +76,7 @@ bool isReplacementDate(SchoolData data, DateTime date) {
           engine.dayChange(date)?['cancelled'] != 1) ||
       data
           .rows('day_changes')
-          .any((d) => d['replacement_date'] == dayKey(date)) ||
-      engine.onDay(date).any((s) => s.replacement);
+          .any((d) => d['replacement_date'] == dayKey(date));
 }
 
 Color eventColor(SchoolData data, DbRow event, {bool dark = false}) {
@@ -197,6 +196,9 @@ CalendarPaint calendarPaint(SchoolData data, DateTime date,
   if (editing) {
     final bands = [
       for (final event in events) eventColor(data, event, dark: dark),
+      if (change?['cancelled'] == 1 &&
+          !events.any((e) => e['kind'] == 'holiday'))
+        Color(paletteValue(data, 'calendar_closure_period', dark: dark)),
       if (replacement)
         Color(paletteValue(data, 'calendar_replacement_active', dark: dark))
     ];
@@ -218,7 +220,7 @@ CalendarPaint calendarPaint(SchoolData data, DateTime date,
     'replacement_active': replacement && active,
     'active': active,
     'national': national,
-    'closure_period': events.any((e) => e['kind'] == 'holiday'),
+    'closure_period': engine.isClosed(date),
     'holiday': engine.isHoliday(date),
     'exam_period': events.any((e) => e['kind'] == 'exam'),
     'replacement': replacement,

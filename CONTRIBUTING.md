@@ -1,6 +1,6 @@
 # コントリビュータ向けガイド
 
-うに時間割の開発手順と、自動バージョン管理の仕様をまとめます。環境構築・起動・ビルド手順は[README](README.md)を参照してください。
+うに時間割の開発手順と、自動バージョン管理の仕様をまとめます。環境構築・起動・ビルド手順は[ビルドガイド](BUILD.md)を参照してください。
 
 ## 現在の導入状況
 
@@ -130,8 +130,8 @@ Release Pleaseは採番・変更履歴・リリースPRを作るツールで、�
 配布物を検証する例:
 
 ```powershell
-gh attestation verify .\UniTable-1.0.1-android.apk --repo akky1023/uni-table
-Get-FileHash .\UniTable-1.0.1-android.apk -Algorithm SHA256
+gh attestation verify .\UniTable-1.0.1-android-arm64-v8a.apk --repo akky1023/uni-table
+Get-FileHash .\UniTable-1.0.1-android-arm64-v8a.apk -Algorithm SHA256
 ```
 
 SHA-256だけでは、ファイルとチェックサムが一緒に置き換えられた場合の真正性を確認できません。ビルド証明で作成元を確認し、チェックサムでダウンロードした内容の一致を確認します。アカウントやメンテナー権限が侵害された場合まで完全に防げる仕組みではありません。

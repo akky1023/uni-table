@@ -1463,9 +1463,9 @@
     "description": "Due date and time",
     "placeholders": {}
   },
-  "chooseDeadlineFromTimetable": "時間割から提出日時を選ぶ",
+  "chooseDeadlineFromTimetable": "時間割から選択",
   "@chooseDeadlineFromTimetable": {
-    "description": "Choose due date from timetable",
+    "description": "Select from timetable",
     "placeholders": {}
   },
   "destination": "提出先",
@@ -2322,5 +2322,26 @@
   "universitySettings": "年度・授業時間",
   "@universitySettings": {
     "description": "University settings section for academic year and class times. Keep the existing Japanese heading."
-  }
+  },
+  "editSession": "休講・補講の設定",
+  "addMakeup": "補講を追加",
+  "editMakeup": "補講を編集",
+  "sessionNotes": "この回のメモ",
+  "courseNotes": "講義全体のメモ",
+  "makeupCourseRequired": "先に講義を登録してください",
+  "sameSessionDestination": "補講先には休講と別の日付またはコマを指定してください",
+  "makeupLabel": "補講",
+  "makeupSlot": "補講のコマ",
+  "clearMakeupSlot": "補講先を解除",
+  "chooseMakeupFromTimetable": "時間割から補講のコマを選ぶ",
+  "selectMakeupSlot": "補講のコマを選択",
+  "sessionAddAssignment": "課題",
+  "sessionAddMakeup": "補講",
+  "cancelSessionQuestion": "この回を休講にしますか？",
+  "chooseSessionMakeup": "補講を選択",
+  "cancelMakeupQuestion": "補講を取り消しますか？",
+  "cancelMakeup": "補講を取り消す",
+  "selectMakeupCourse": "補講の講義を選択",
+  "replaceLectureWithMakeupQuestion": "もとの講義を休講にして登録しますか？",
+  "replaceOneOffWithMakeupQuestion": "単発講義を取り消して登録しますか？"
 }
